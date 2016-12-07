@@ -1,4 +1,4 @@
-// Repris en partie de GLimac
+// Repris en partie de GLimac.
 
 #pragma once
 
