@@ -1,5 +1,9 @@
 #pragma once
 
+// Un fourre-tout des en-t^etes dont on a généralement
+// besoin. Pas forcément une bonne pratique, mais
+// ça fait gagner du temps.
+
 #include <dm/stdcxx.hpp>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>

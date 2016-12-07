@@ -3,24 +3,23 @@
 
 namespace dm {
 
-// We need to distinguish game state from visual state.
-// Basically :
-// - visual state update frequency depends on the framerate.
-// - game state update frequency is fixed, and is the same on all machines.
-// This way, we can ensure consistent gameplay experience across various
-// monitors while still making best use of their refresh rate.
+// On a besoin de distinguer l'état "logique" du jeu de son état "visuel".
+// L'état visuel a besoin d'etre mis à jour aussi vite que l'écran se rafraichit,
+// et pas tous les écrans ne sont à 60Hz.
+//
+// On a besoin que le gameplay soit consistant sur tous les appareils, donc
+// la fréquence de mise à jour de l'état "logique" devrait ^etre fixée et connue.
+//
+// Ensuite, l'état visuel est le rendu d'une interpolation entre l'état logique
+// actuel et le suivant.
+//
+//
+// Ici, un Donjon est défini comme :
+// - Un ensemble d'étages (floors).
+// - A tout moment, le héros est dans l'étage donné d'un donjon donné.
+// On peut avoir plusieurs donjons.
 
-
-// The GameState struct contains info about the hero's position, orientation,
-// the monsters's positions, etc.
-// It might contain the previous positions so the VisualState can interpolate
-// them at the time of rendering.
-
-// Here, we treat dungeons as set of floors.
-// - Any dungeon has any number of floors.
-// - At any one time, the hero is at a given floor at a given dungeon.
-// - We may have various dungeons.
-
+// Types de cases.
 enum Tile {
     TILE_WALL    = 0x000000,
     TILE_EMPTY   = 0xFFFFFF,
@@ -62,9 +61,10 @@ struct Dungeon {
 
 struct GameState {
     uint32_t tick_delay_ms; 
-    // ^ This is the delay, in milliseconds, between game state updates.
-    // Different from visual state updates, which are per-frame.
+    // ^ C'est le délai, en millisecondes, entre deux mises à 
+    // jour de l'état logique.
     uint64_t tick_count;
+    // ^ Cette valeur est incrémentée à chaque MAJ.
     uint32_t time_ms, prev_time_ms;
     void update(Input &input);
     Character hero;

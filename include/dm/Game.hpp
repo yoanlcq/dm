@@ -5,6 +5,9 @@
 namespace dm {
 
 struct Game;
+
+// Auto-explicatif. On a besoin d'initialiser un contexte
+// OpenGL avant toute chose.
 struct EnsureGLContext {
     EnsureGLContext(Game &g);
     ~EnsureGLContext();
@@ -25,7 +28,7 @@ struct Game {
     
     Game(glm::ivec2 window_size=glm::ivec2(600,400));
     ~Game();
-    void reshape(const glm::ivec2 &size);
+    void reshape(const glm::ivec2 &size); // Appeler quand la taille du canevas change.
     bool isFullscreen() const;
     void enterFullscreen();
     void leaveFullscreen();
@@ -33,7 +36,7 @@ struct Game {
     void handleSDL2Event(const SDL_Event &e);
     void clearGL() const;
     void renderGL() const;
-    void presentGL();
+    void presentGL(); // swapBuffers().
     void updateVisualState();
     void updateGameState();
 };

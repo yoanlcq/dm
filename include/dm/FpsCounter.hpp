@@ -4,7 +4,8 @@
 
 namespace dm {
 
-// Helper to count FPS and (if needed) limit the framerate.
+// Ensemble de données pour compter le nombre de Frames-Par-Seconde
+// et les limiter si besoin.
 struct FpsCounter {
     uint32_t fps_ceil;
     uint32_t framerate_limit;

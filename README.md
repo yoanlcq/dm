@@ -2,7 +2,7 @@
 
 #### Pré-requis
 - Outils : GNU Make et g++ (sous Windows, MinGW est un moyen d'avoir tout ça);
-- Libs : SDL2 et SDL2_image. Probablement plus tard, SDL2_mixer.
+- Libs : GLM, SDL2 et SDL2_image. Probablement plus tard, SDL2_mixer.
 - Pilote graphique : Capable d'un Core Profile OpenGL 3.3 ou plus.
 
 #### Plus-value
