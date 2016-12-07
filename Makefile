@@ -13,15 +13,17 @@ ifeq ($(host_os),windows)
 dot_exe   := .exe
 mkdir_p  = if not exist $(subst /,\\,$(1)) ( mkdir $(subst /,\\,$(1)) )
 rmdir_rf = if exist $(subst /,\\,$(1)) ( rmdir /q /s $(subst /,\\,$(1)) )
+cxxarch  = -m32 
 else
 dot_exe  := 
 rmdir_rf = rm -rf $(1)
 mkdir_p  = mkdir -p $(1)
+cxxarch  :=
 endif
 
 cxx      := g++
 cxxflags := $(strip \
-	-std=c++11 -Wall -pedantic -Iinclude -g -Og \
+	$(cxxarch) -std=c++11 -Wall -pedantic -Iinclude -g -Og \
 	-DDM_GL_DEBUG -DGLEW_STATIC \
 )
 cppfiles := $(call rglob,src,*.cpp)

@@ -1,6 +1,17 @@
 #include <dm/dm.hpp>
 
-int main(int argc, char *argv[]) {
+#ifdef _WIN32
+#include <windows.h>
+int CALLBACK WinMain(
+  _In_ HINSTANCE hInstance,
+  _In_ HINSTANCE hPrevInstance,
+  _In_ LPSTR     lpCmdLine,
+  _In_ int       nCmdShow
+)
+#else
+int main(int argc, char *argv[]) 
+#endif
+{
     dm::Game g;
     while(!g.should_quit) {
         SDL_Event e;
