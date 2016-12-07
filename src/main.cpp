@@ -18,15 +18,15 @@ static void fix_cwd(const char *argv0) {
     const char *argv0_last = strrchr(argv0, '/');
 #endif
     argv0 = argv0_last ? argv0_last+1 : argv0;
+    bool success = true;
 #ifdef _WIN32
-    BOOL success;
     if(GetFileAttributesA(argv0) != INVALID_FILE_ATTRIBUTES)
         success = SetCurrentDirectoryA("..");
-    assert(success);
 #else
     if(!access(argv0, F_OK))
-        chdir("..");
+        success = !chdir("..");
 #endif
+    assert(success);
 }
 
 #ifdef _WIN32
