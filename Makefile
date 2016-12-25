@@ -13,7 +13,7 @@ ifeq ($(host_os),windows)
 dot_exe   := .exe
 mkdir_p  = if not exist $(subst /,\\,$(1)) ( mkdir $(subst /,\\,$(1)) )
 rmdir_rf = if exist $(subst /,\\,$(1)) ( rmdir /q /s $(subst /,\\,$(1)) )
-cxxarch  = -m32 
+cxxarch  = #-m32 
 else
 dot_exe  := 
 rmdir_rf = rm -rf $(1)

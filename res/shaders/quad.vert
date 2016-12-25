@@ -40,8 +40,8 @@ void main() {
     v_texcoords = a_texcoords;
     //v_normal = a_normal;
     //v_tilecoords = a_tilecoords;
-    vec3 position = rotate3d(vec3(0,1,0), (M_PI/2.f)+atan(a_normal.z, a_normal.x))
-                  * rotate3d(vec3(1,0,0), asin(a_normal.y))
+    vec3 position = rotate3d(vec3(0,1,0), (M_PI/2.f)+atan(float(a_normal.z), float(a_normal.x)))
+                  * rotate3d(vec3(1,0,0), asin(float(a_normal.y)))
                   * vec3(a_position, 0);
     position += a_tilecoords + vec3(a_normal)/2.f;
     gl_Position = u_viewprojmatrix*vec4(position, 1);
