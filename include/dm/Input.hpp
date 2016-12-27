@@ -1,14 +1,28 @@
 #pragma once
+#include <dm/dm.hpp>
 
 namespace dm {
 
+struct InputKeys { 
+    bool z, q, s, d, a, e;
+    bool up, down, left, right;
+    bool space, enter, plus, minus; 
+    bool mouseleft, mousemiddle, mouseright;
+    bool f11, esc;
+};
+struct RawInput { 
+    InputKeys held, clicked;
+    int mousescroll;
+    glm::ivec2 mouseprevpos, mousepos;
+    void clearClicked();
+    void handleSDL2Event(const SDL_Event &e);
+};
 struct Input {
-    bool  mouse_in; // Is the mouse within the window ?
-    glm::ivec2 mouse, mousemove;
-    glm::ivec2 move, move_held;// Values are either -1 or 1.
-    int32_t rotate, rotate_held;
-    bool attack, attack_held;
+    glm::ivec2 axis;
+    int turnaround;
+    bool interact;
+    bool toggle_fullscreen;
+    void recomputeFromRawInput(const RawInput&);
 };
 
-
-}
+} // namespace dm

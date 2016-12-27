@@ -1,0 +1,8 @@
+# Each line must follow the form :
+# <dungeon_filename> <x> <y> <right_node> <up_node> <left_node> <down_node>
+# where :
+# <dungeon_filename> : self-explanatory. The '.' name is reserved and indicates that there's
+#                      no dungeon.
+# <x> <y>            : Position, in image pixels, of this node.
+# <<direction>_node> : Number of the node to go to, given a direction. 
+#                      Set to 0 when there's no node in that direction.

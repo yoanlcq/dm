@@ -50,11 +50,11 @@ int main(int argc, char *argv[])
         SDL_Event e;
         while(g.pollSDL2Event(e))
             g.handleSDL2Event(e);
-        g.updateVisualState();
+        g.updateVisuals();
         g.clearGL();
         g.renderGL();
         g.presentGL();
     }
-    return g.exit_code;
+    return g.exit_status;
 }
 

@@ -1,11 +1,8 @@
 #include <dm/dm.hpp>
 
 using namespace std;
+using namespace dm;
 using namespace glm;
-
-
-namespace dm {
-
 
 // No use changing this.
 static const uint32_t UPDATE_GAME_STATE_BIT = 0x20;
@@ -21,25 +18,11 @@ static uint32_t timer_callback(uint32_t interval, void *param) {
     return interval;
 }
 
-
-
-Game::Game(glm::ivec2 window_size) 
-    : window_size(window_size), 
-      prev_window_size(window_size),
-      camera(window_size)
-{
-
-    // Clearing everything to 0 is a good start.
-    memset(this, 0, sizeof(*this));
-
-    should_quit = true;
-    exit_status = EXIT_FAILURE;
-
+EnsureGLContext::EnsureGLContext(Game &g) {
     if(SDL_Init(SDL_INIT_EVERYTHING) < 0) {
         cerr << "SDL_Init(): " << SDL_GetError() << endl;
         return;
     }
-
     int img_flags = IMG_INIT_JPG | IMG_INIT_PNG;
     int img_init  = IMG_Init(img_flags);
     if((img_init&img_flags) != img_flags) {
@@ -58,19 +41,18 @@ Game::Game(glm::ivec2 window_size)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, 
                         SDL_GL_CONTEXT_PROFILE_CORE
     );
-
-    window = SDL_CreateWindow("Dungeon master", 
+    g.window = SDL_CreateWindow("Dungeon master", 
             SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 
-            window_size.x, window_size.y,
+            g.window_size.x, g.window_size.y,
             SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
-    if(!window) {
+    if(!g.window) {
         cerr << "SDL_CreateWindow(): " << SDL_GetError() << endl;
         return;
     }
 
     // Screen resolution for fullscreen mode.
-    if(SDL_GetCurrentDisplayMode(0, &current_display_mode)) {
+    if(SDL_GetCurrentDisplayMode(0, &g.current_display_mode)) {
         cerr << "SDL_GetCurrentDisplayMode(): " << SDL_GetError() << endl;
         return;
     }
@@ -79,8 +61,8 @@ Game::Game(glm::ivec2 window_size)
      * does not imply GL context creation.
      * SDL2's docs states that you need to call SDL_GL_CreateContext() before
      * any GL calls. */
-    gl_context = SDL_GL_CreateContext(window);
-    if(!gl_context) {
+    g.gl_context = SDL_GL_CreateContext(g.window);
+    if(!g.gl_context) {
         cerr << "SDL_GL_CreateContext(): " << SDL_GetError() << endl;
         return;
     }
@@ -130,34 +112,46 @@ Game::Game(glm::ivec2 window_size)
     );
 
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    //glEnable(GL_BLEND);
+    //glEnable(GL_CULL_FACE);
+    
+    //glDepthFunc(GL_LESS);
+    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 
     if(SDL_GL_SetSwapInterval(1) < 0)
         cerr << "Warning : Vsync is disabled. The FPS may skyrocket." << endl;
 
+    g.should_quit = false;
+    g.exit_code = EXIT_SUCCESS;
+}
+EnsureGLContext::~EnsureGLContext() {}
 
-    fps_limiter.fps_ceil        = 128;
-    fps_limiter.framerate_limit = 0;
-    fps_limiter.frame_count     = 0;
-    fps_limiter.lim_last_time   = SDL_GetTicks();
-    fps_limiter.last_time       = SDL_GetTicks();
+Game::Game(ivec2 window_size) 
+  : should_quit(true), exit_code(EXIT_FAILURE), 
+    window_size(window_size), prev_window_size(window_size),
+    ensure_gl_context(*this), 
+    fps_counter({}), input({}), game_state({}),
+    visual_state(window_size)
+{
 
-    hope(res.setup());
-    GLQuadBatch::setupGL();
+    fps_counter.fps_ceil        = 128;
+    fps_counter.framerate_limit = 0;
+    fps_counter.frame_count     = 0;
+    fps_counter.lim_last_time   = SDL_GetTicks();
+    fps_counter.last_time       = SDL_GetTicks();
 
-    gameplay = GAMEPLAY_WELCOME_SCREEN;
-    updateState(); // Do it once here...
+    // Keep it under the framerate (that is, should be > 33).
+    game_state.tick_delay_ms = 50;
+    updateGameState(); // Do it once here...
     //... before scheduling it.
-    SDL_AddTimer(UPDATESTATE_DELAY_MS, timer_callback, (void*)UPDATE_GAME_STATE_BIT);
-
-    should_quit = false;
-    exit_status = EXIT_SUCCESS;
+    SDL_AddTimer(game_state.tick_delay_ms, timer_callback, 
+        (void*)UPDATE_GAME_STATE_BIT);
 }
 
+
+
 Game::~Game() {
-    res.cleanup();
-    GLQuadBatch::cleanupGL();
     IMG_Quit();
     SDL_GL_DeleteContext(gl_context);
     SDL_DestroyWindow(window);
@@ -165,12 +159,35 @@ Game::~Game() {
 }
 
 
-
-void Game::reshape(ivec2 size) {
+void Game::reshape(const ivec2 &size) {
     glViewport(0, 0, size.x, size.y);
     window_size = size;
-    camera.reshape(size);
+    visual_state.reshape(size);
+    //TODO update proj matrix
 }
+
+bool Game::isFullscreen() const {
+    return !!(SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN);
+}
+
+void Game::enterFullscreen()  {
+    prev_window_size = window_size;
+    SDL_SetWindowSize(window, current_display_mode.w, current_display_mode.h);
+    if(SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN) < 0)
+        cerr << "Failed to enter fullscreen : " << SDL_GetError() << endl;
+}
+void Game::leaveFullscreen()  {
+    if(SDL_SetWindowFullscreen(window, false) < 0) {
+        cerr << "Failed to leave fullscreen : " << SDL_GetError() << endl;
+        return;
+    }
+    SDL_SetWindowSize(window, prev_window_size.x, prev_window_size.y);
+    SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, 
+                                  SDL_WINDOWPOS_CENTERED);
+}
+
+
+
 
 bool Game::pollSDL2Event(SDL_Event &e) const {
     return SDL_PollEvent(&e);
@@ -180,7 +197,7 @@ void Game::handleSDL2Event(const SDL_Event &event) {
     switch(event.type) {
     case SDL_USEREVENT:
         if((uint32_t)(uintptr_t)event.user.data1 & UPDATE_GAME_STATE_BIT)
-            updateState(); 
+            updateGameState(); 
         break;
     case SDL_QUIT: 
     case SDL_APP_TERMINATING: 
@@ -195,100 +212,64 @@ void Game::handleSDL2Event(const SDL_Event &event) {
         case SDL_WINDOWEVENT_SIZE_CHANGED:
             reshape(ivec2(event.window.data1, event.window.data2));
             break;
+        case SDL_WINDOWEVENT_ENTER: input.mouse_in = true;  break;
+        case SDL_WINDOWEVENT_LEAVE: input.mouse_in = false; break;
+        }
+        break;
+    case SDL_KEYDOWN:
+        if(event.key.repeat)
+            break;
+        switch(event.key.keysym.sym) {
+            case SDLK_d: input.move_held.x += 1; input.move = ivec2(1,0);  break;
+            case SDLK_z: input.move_held.y += 1; input.move = ivec2(0,1);  break;
+            case SDLK_q: input.move_held.x -= 1; input.move = ivec2(-1,0); break;
+            case SDLK_s: input.move_held.y -= 1; input.move = ivec2(0,-1); break;
+            case SDLK_a: input.rotate_held += 1; input.rotate =  1; break;
+            case SDLK_e: input.rotate_held -= 1; input.rotate = -1; break;
+            case SDLK_SPACE: input.attack_held = input.attack = true; break;
+            case SDLK_F11: 
+                if(isFullscreen())
+                    leaveFullscreen();
+                else 
+                    enterFullscreen();
+                break;
+        }
+        break;
+    case SDL_KEYUP: 
+        switch(event.key.keysym.sym) {
+            case SDLK_d: input.move_held.x -= 1; break;
+            case SDLK_z: input.move_held.y -= 1; break;
+            case SDLK_q: input.move_held.x += 1; break;
+            case SDLK_s: input.move_held.y += 1; break;
+            case SDLK_a: input.rotate_held -= 1; break;
+            case SDLK_e: input.rotate_held += 1; break;
+            case SDLK_SPACE: input.attack_held = false; break;
         }
         break;
     }
-    raw_input.handleSDL2Event(event);
 }
 
-
-
-bool Game::isFullscreen() const {
-    return !!(SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN);
-}
-
-void Game::enterFullscreen()  {
-    prev_window_size = window_size;
-    SDL_SetWindowSize(window, current_display_mode.w, current_display_mode.h);
-    if(SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN) < 0)
-        cerr << "Failed to enter fullscreen : " << SDL_GetError() << endl;
-}
-
-void Game::leaveFullscreen()  {
-    if(SDL_SetWindowFullscreen(window, false) < 0) {
-        cerr << "Failed to leave fullscreen : " << SDL_GetError() << endl;
-        return;
-    }
-    SDL_SetWindowSize(window, prev_window_size.x, prev_window_size.y);
-    SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, 
-                                  SDL_WINDOWPOS_CENTERED);
-}
-
-
-
-
-// Keep it under the framerate (that is, should be > 33)
-const uint32_t Game::UPDATESTATE_DELAY_MS = 50;
-
-void Game::updateState() { 
-    
-    input.recomputeFromRawInput(raw_input);
-    
-    if(input.toggle_fullscreen) {
-        if(isFullscreen())
-            leaveFullscreen();
-        else
-            enterFullscreen();
-    }
-    input.toggle_fullscreen = false; // Just in case
-
-    switch(gameplay) {
-    case GAMEPLAY_WELCOME_SCREEN: welcome_screen.updateState(input); break;
-    case GAMEPLAY_WORLD_MAP:      world_map     .updateState(input); break;
-    case GAMEPLAY_DUNGEON:        dungeon       .updateState(input); break;
-    }
-    
-    
-    raw_input.clearClicked();
-}
-
-void Game::updateVisuals() {
-    switch(gameplay) {
-    case GAMEPLAY_WELCOME_SCREEN: welcome_screen.updateVisuals(); break;
-    case GAMEPLAY_WORLD_MAP:      world_map     .updateVisuals(); break;
-    case GAMEPLAY_DUNGEON:        dungeon       .updateVisuals(); break;
-    }
-}
-
-void Game::renderGL() const { 
-    switch(gameplay) {
-    case GAMEPLAY_WELCOME_SCREEN: welcome_screen.renderGL(); break;
-    case GAMEPLAY_WORLD_MAP:      world_map     .renderGL(); break;
-    case GAMEPLAY_DUNGEON:        dungeon       .renderGL(); break;
-    }
-}
 
 void Game::clearGL() const {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
+void Game::renderGL() const {
+    visual_state.renderGL();
+}
+
 void Game::presentGL() {
-    if(fps_limiter.framerate_limit > 0)
-        fps_limiter.waitBeforePresenting();
-    fps_limiter.nextFrame();
+    if(fps_counter.framerate_limit > 0)
+        fps_counter.waitBeforePresenting();
+    fps_counter.nextFrame();
     SDL_GL_SwapWindow(window);
 }
 
 
-
-
-bool Game::saveToFile(std::string path) const {
-    assert("This function was not implemented yet !" && false);
-    return false;
+void Game::updateVisualState() {
+    visual_state.frames_per_second = fps_counter.fps;
+    visual_state.update(game_state);
 }
-
-
-
-
-
-} // namespace dm
+void Game::updateGameState() {
+    game_state.update(input);
+}

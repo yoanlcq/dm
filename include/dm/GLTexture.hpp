@@ -2,12 +2,8 @@
 
 namespace dm {
 
-struct GLTexture {
-    GLuint texid;
-    GLTexture(const std::string &filepath);
-    GLTexture(uint32_t rgba=0xffcc00fful);
-    ~GLTexture();
-};
+GLuint GLTexture_fromRgba32(rgba32 rgba=rgba32(0xff, 0xcc, 0x00, 0xff));
+GLuint GLTexture_fromFile(const std::string &filepath);
 
 }
 
