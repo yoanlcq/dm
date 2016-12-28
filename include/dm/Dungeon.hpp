@@ -53,7 +53,7 @@ enum Tile {
     COUNT // Keep last
 };
 
-typedef std::vector<std::vector<Tile>> TileSet;
+typedef Image<Tile> TileSet;
 
 typedef signed int LifeValue; 
 // Not unsigned, to prevent accidental subtraction overflows.
@@ -132,10 +132,19 @@ struct Dungeon {
     static Lerp<float> fade_transition;
     std::vector<Floor> all_floors;
     Floor*             floor;
+    PerspectiveView    view;
 
-    void updateState(const Input &input);
-    void updateVisuals();
+     Dungeon(glm::ivec2 viewport_size);
+    ~Dungeon();
+
+    void reshape(glm::ivec2 new_viewport_size);
+    GameplayType nextFrame(const Input &input, uint32_t fps);
     void renderGL() const;
+
+private:
+    static size_t refcount;
+    static void setupGL();
+    static void cleanupGL();
 };
 
 

@@ -13,6 +13,9 @@ struct FpsLimiter {
     uint32_t lim_last_time;
     uint32_t last_time;
     uint32_t fps; // This member is computed from the above ones.
+
+    FpsLimiter();
+
     void waitBeforePresenting();
     void nextFrame();
 };

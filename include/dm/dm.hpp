@@ -19,28 +19,36 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/rotate_vector.hpp>
 
+
+// Macro for when we need a condition to be true, and its falsehood
+// would not be caused by a programming error.
+// hope() must be guaranteed to have an effect even in release builds.
+#define hope(...) assert(__VA_ARGS__)
+#ifdef NDEBUG
+#error "You've defined NDEBUG - Please reimplement the hope() macro accordingly."
+#endif
+
+
 #include <dm/gl.hpp>
 #include <dm/gl_debug.hpp>
-#include <dm/math_utils.hpp>
+#include <dm/clamp.hpp>
 #include <dm/rgba32.hpp>
+#include <dm/Image.hpp>
+#include <dm/PPMImage.hpp>
+#include <dm/Lerp.hpp>
 
-#include <dm/Res.hpp>
+#include <dm/PerspectiveView.hpp>
+#include <dm/OrthographicView.hpp>
+#include <dm/TextureUnit.hpp>
 #include <dm/GLProgram.hpp>
 #include <dm/GLTexture.hpp>
 #include <dm/GLQuadBatch.hpp>
 #include <dm/GLMonospaceText.hpp>
-#include <dm/Camera.hpp>
 #include <dm/Input.hpp>
 #include <dm/FpsLimiter.hpp>
+#include <dm/GameplayType.hpp>
 #include <dm/Dungeon.hpp>
 #include <dm/WorldMap.hpp>
 #include <dm/WelcomeScreen.hpp>
 #include <dm/Game.hpp>
-
-// Macro for when we need a condition to be true, and its falsehood
-// would not be caused by a programming error.
-#define hope(...) assert(__VA_ARGS__)
-#ifdef NDEBUG
-#error "You've defined NDEBUG - the hope() macro needs to be reimplemented."
-#endif
 

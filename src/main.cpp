@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
         SDL_Event e;
         while(g.pollSDL2Event(e))
             g.handleSDL2Event(e);
-        g.updateVisuals();
+        g.nextFrame();
         g.clearGL();
         g.renderGL();
         g.presentGL();

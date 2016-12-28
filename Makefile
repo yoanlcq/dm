@@ -23,7 +23,7 @@ endif
 
 cxx      := g++
 cxxflags := $(strip \
-	$(cxxarch) -std=c++11 -Wall -pedantic -Iinclude -g -Og \
+	$(cxxarch) -std=c++11 -Wall -pedantic -Iinclude -g -O3 \
 	-DDM_GL_DEBUG -DGLEW_STATIC \
 )
 cppfiles := $(call rglob,src,*.cpp)

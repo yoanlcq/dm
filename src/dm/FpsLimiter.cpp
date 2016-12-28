@@ -4,6 +4,15 @@ using namespace std;
 
 namespace dm {
 
+FpsLimiter::FpsLimiter() 
+    : fps_ceil        (128),
+      framerate_limit (0),
+      frame_count     (0),
+      lim_last_time   (SDL_GetTicks()),
+      last_time       (SDL_GetTicks())
+    {}
+
+
 void FpsLimiter::nextFrame() {
     // Should be in [100, 1000]
     static const double interval = 1000.0; 

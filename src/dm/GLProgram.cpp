@@ -110,10 +110,14 @@ GLuint GLProgram_fromSources(const GLchar* vsSrc, const GLchar* fsSrc) {
 }
 
 GLuint GLProgram_fromFiles(const std::string& vsFile, const std::string& fsFile) {
-	return buildGLProgramNamed(
+    cout << "Compiling `" << vsFile << "' and `" << fsFile << "'... ";
+    cout.flush();
+	GLuint prog = buildGLProgramNamed(
         readWholeFile(vsFile).c_str(), vsFile, 
         readWholeFile(fsFile).c_str(), fsFile
     );
+    cout << "done." << endl;
+    return prog;
 }
 
 } // namespace dm

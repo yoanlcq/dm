@@ -3,13 +3,14 @@
 
 namespace dm {
 
-struct Camera {
+struct PerspectiveView {
+    glm::ivec2      viewport_size;
     Lerp<glm::vec3> position;
     Lerp<float>     angle_y;
-    glm::ivec2      viewport_size;
+    Lerp<float>     fov_y;
 
-    Camera(glm::ivec2 viewport_size);
-    ~Camera();
+    PerspectiveView(glm::ivec2 viewport_size);
+    ~PerspectiveView();
 
     void reshape(glm::ivec2 new_viewport_size);
     glm::vec3 getFrontVector() const;

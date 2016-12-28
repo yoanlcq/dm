@@ -10,6 +10,31 @@ static bool isPowerOfTwo(int n) {
     return n>0 && !(n & (n-1));
 }
 
+static SDL_Surface* SDL2Surface_vSymmetry(SDL_Surface *src) {
+
+    hope(src->format->BitsPerPixel > 8);
+
+    SDL_Surface *dst = SDL_CreateRGBSurface(
+        0, src->w, src->h, 
+        src->format->BitsPerPixel,
+        src->format->Rmask,
+        src->format->Gmask,
+        src->format->Bmask,
+        src->format->Amask
+    );
+    if(!dst) {
+        cerr << "Failed to create dst : " <<  SDL_GetError() << endl;
+        return nullptr;
+    }
+    SDL_Rect srcrect = { 0,        0, src->w, 1 };
+    SDL_Rect dstrect = { 0, src->h-1, src->w, 1 };
+    for(int y=0 ; y<src->h && dstrect.y != srcrect.y ; ++y, ++(srcrect.y), --(dstrect.y))
+        SDL_BlitSurface(src, &srcrect, dst, &dstrect);
+    return dst;
+}
+
+
+
 static GLuint configureTexture(GLenum format, const void *pixels, size_t w, size_t h) {
     GLuint texid = 0;
     glGenTextures(1, &texid);
@@ -30,6 +55,8 @@ GLuint GLTexture_fromRgba32(rgba32 rgba) {
 }
 
 GLuint GLTexture_fromFile(const string &filepath) {
+    cout << "Loading `" << filepath << "'... ";
+    cout.flush();
     GLuint texid = 0;
     SDL_Surface *s = IMG_Load(filepath.c_str());
     if(!s) {
@@ -50,9 +77,23 @@ GLuint GLTexture_fromFile(const string &filepath) {
     if(!(isPowerOfTwo(s->w) && isPowerOfTwo(s->h)))
         cerr << "Warning : Texture `" << filepath << "' is not power of two!" << endl;
     
-    texid = configureTexture(format, s->pixels, s->w, s->h);
+    SDL_Surface *s_ = SDL2Surface_vSymmetry(s);
     SDL_FreeSurface(s);
+    if(!s_) {
+        cerr << "Failed to allocate vertical symmetry!" << endl;
+        return false;
+    }
+    texid = configureTexture(format, s_->pixels, s_->w, s_->h);
+    SDL_FreeSurface(s_);
+    cout << "done (id = " << texid << ")." << endl;
     return texid;
+}
+
+void GLTexture_bindToUnit(GLuint tex, TextureUnit unit) {
+    glActiveTexture(GL_TEXTURE0 + size_t(unit));
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glActiveTexture(GL_TEXTURE0);
+    cout << "Texture id " << tex << " bound to unit " << size_t(unit) << "." << endl;
 }
 
 } // namespace dm

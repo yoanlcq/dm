@@ -4,13 +4,6 @@
 
 namespace dm {
 
-// Helper template for constraining values to a certain range.
-// See also : GLSL's clamp().
-template<typename T>
-T clamp(T x, T minVal, T maxVal) {
-    return std::min(maxVal, std::max(minVal, x));
-}
-
 // Helper template for linear interpolations.
 // First, set its 'prev' and 'next' values - then, every
 // animation frame, just add somme value to 'progress',
@@ -20,15 +13,20 @@ struct Lerp {
     T prev, next;
     float progress;
 
-    Lerp(T curr=T({}))   : prev(curr), next(curr), progress(0) {}
+    Lerp() { memset(this, 0, sizeof *this); }
+    Lerp(T curr)         : prev(curr), next(curr), progress(0) {}
     Lerp(T prev, T next) : prev(prev), next(next), progress(0) {}
     ~Lerp() {}
 
-    T getCurrent() const {
-        return prev*(1-progress) + next*progress;
+    void reset(T curr = T({})) {
+        *this = Lerp(curr);
     }
-    bool isComplete() const {
-        return progress >= .996f;
+    T getCurrent() const {
+        float p = clamp<float>(progress, 0, 1);
+        return prev*(1-p) + next*p;
+    }
+    operator T() const {
+        return getCurrent();
     }
 };
 

@@ -57,30 +57,22 @@ void Input::recomputeFromRawInput(const RawInput& raw) {
 
     memset(this, 0, sizeof*this);
 
-    if(raw.clicked.a || raw.held.a)
+    if(raw.held.a)
         turnaround += 1;
-    if(raw.clicked.e || raw.held.e)
+    if(raw.held.e)
         turnaround -= 1;
-    
-    turnaround = clamp<int>(turnaround, -1, 1);
-
-    if(raw.clicked.up    || raw.held.up    || raw.clicked.z || raw.held.z)
+    if(raw.held.up    || raw.held.z)
         axis.y += 1;
-    if(raw.clicked.down  || raw.held.down  || raw.clicked.s || raw.held.s)
+    if(raw.held.down  || raw.held.s)
         axis.y -= 1;
-
-    axis.y = clamp<int>(axis.y, -1, 1);
-
-    if(raw.clicked.left  || raw.held.left  || raw.clicked.q || raw.held.q)
+    if(raw.held.left  || raw.held.q)
         axis.x -= 1;
-    if(raw.clicked.right || raw.held.right || raw.clicked.d || raw.held.d)
+    if(raw.held.right || raw.held.d)
         axis.x += 1;
 
-    axis.x = clamp<int>(axis.x, -1, 1);
-
-    if(raw.clicked.space     || raw.held.space 
-    || raw.clicked.enter     || raw.held.enter
-    || raw.clicked.mouseleft || raw.held.mouseleft)
+    if(raw.held.space 
+    || raw.held.enter
+    || raw.held.mouseleft)
         interact = true;
 
     if(raw.clicked.f11)

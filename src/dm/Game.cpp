@@ -7,34 +7,7 @@ using namespace glm;
 namespace dm {
 
 
-// No use changing this.
-static const uint32_t UPDATE_GAME_STATE_BIT = 0x20;
-
-static uint32_t timer_callback(uint32_t interval, void *param) {
-    SDL_Event e;
-    e.type       = SDL_USEREVENT;
-    e.user.type  = SDL_USEREVENT;
-    e.user.code  = 0;
-    e.user.data1 = param;
-    e.user.data2 = NULL;
-    SDL_PushEvent(&e);
-    return interval;
-}
-
-
-
-Game::Game(glm::ivec2 window_size) 
-    : window_size(window_size), 
-      prev_window_size(window_size),
-      camera(window_size)
-{
-
-    // Clearing everything to 0 is a good start.
-    memset(this, 0, sizeof(*this));
-
-    should_quit = true;
-    exit_status = EXIT_FAILURE;
-
+EnsureGLContext::EnsureGLContext(Game *g) {
     if(SDL_Init(SDL_INIT_EVERYTHING) < 0) {
         cerr << "SDL_Init(): " << SDL_GetError() << endl;
         return;
@@ -59,18 +32,18 @@ Game::Game(glm::ivec2 window_size)
                         SDL_GL_CONTEXT_PROFILE_CORE
     );
 
-    window = SDL_CreateWindow("Dungeon master", 
+    g->window = SDL_CreateWindow("Dungeon master", 
             SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 
-            window_size.x, window_size.y,
+            g->window_size.x, g->window_size.y,
             SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
-    if(!window) {
+    if(!g->window) {
         cerr << "SDL_CreateWindow(): " << SDL_GetError() << endl;
         return;
     }
 
     // Screen resolution for fullscreen mode.
-    if(SDL_GetCurrentDisplayMode(0, &current_display_mode)) {
+    if(SDL_GetCurrentDisplayMode(0, &g->current_display_mode)) {
         cerr << "SDL_GetCurrentDisplayMode(): " << SDL_GetError() << endl;
         return;
     }
@@ -79,8 +52,8 @@ Game::Game(glm::ivec2 window_size)
      * does not imply GL context creation.
      * SDL2's docs states that you need to call SDL_GL_CreateContext() before
      * any GL calls. */
-    gl_context = SDL_GL_CreateContext(window);
-    if(!gl_context) {
+    g->gl_context = SDL_GL_CreateContext(g->window);
+    if(!g->gl_context) {
         cerr << "SDL_GL_CreateContext(): " << SDL_GetError() << endl;
         return;
     }
@@ -135,29 +108,28 @@ Game::Game(glm::ivec2 window_size)
 
     if(SDL_GL_SetSwapInterval(1) < 0)
         cerr << "Warning : Vsync is disabled. The FPS may skyrocket." << endl;
+}
 
 
-    fps_limiter.fps_ceil        = 128;
-    fps_limiter.framerate_limit = 0;
-    fps_limiter.frame_count     = 0;
-    fps_limiter.lim_last_time   = SDL_GetTicks();
-    fps_limiter.last_time       = SDL_GetTicks();
-
-    hope(res.setup());
-    GLQuadBatch::setupGL();
-
-    gameplay = GAMEPLAY_WELCOME_SCREEN;
-    updateState(); // Do it once here...
-    //... before scheduling it.
-    SDL_AddTimer(UPDATESTATE_DELAY_MS, timer_callback, (void*)UPDATE_GAME_STATE_BIT);
-
+Game::Game(glm::ivec2 window_size) 
+    : should_quit(true),
+      exit_status(EXIT_FAILURE),
+      window_size(window_size), 
+      prev_window_size(window_size),
+      ensure_gl_context(this), // !!! Keep it after window_size, but before the others !!!
+      raw_input({}),
+      input({}),
+      gameplay(GameplayType::WELCOME_SCREEN),
+      next_gameplay(gameplay),
+      welcome_screen(window_size),
+      world_map(window_size),
+      dungeon(window_size)
+{
     should_quit = false;
     exit_status = EXIT_SUCCESS;
 }
 
 Game::~Game() {
-    res.cleanup();
-    GLQuadBatch::cleanupGL();
     IMG_Quit();
     SDL_GL_DeleteContext(gl_context);
     SDL_DestroyWindow(window);
@@ -169,7 +141,9 @@ Game::~Game() {
 void Game::reshape(ivec2 size) {
     glViewport(0, 0, size.x, size.y);
     window_size = size;
-    camera.reshape(size);
+    welcome_screen.reshape(size);
+    world_map.reshape(size);
+    dungeon.reshape(size);
 }
 
 bool Game::pollSDL2Event(SDL_Event &e) const {
@@ -178,10 +152,6 @@ bool Game::pollSDL2Event(SDL_Event &e) const {
 
 void Game::handleSDL2Event(const SDL_Event &event) {
     switch(event.type) {
-    case SDL_USEREVENT:
-        if((uint32_t)(uintptr_t)event.user.data1 & UPDATE_GAME_STATE_BIT)
-            updateState(); 
-        break;
     case SDL_QUIT: 
     case SDL_APP_TERMINATING: 
         should_quit = true; 
@@ -225,12 +195,13 @@ void Game::leaveFullscreen()  {
 }
 
 
+uint32_t Game::getFPS() const {
+    uint32_t hz = current_display_mode.refresh_rate;
+    return hz ? hz : fps_limiter.fps;
+}
 
 
-// Keep it under the framerate (that is, should be > 33)
-const uint32_t Game::UPDATESTATE_DELAY_MS = 50;
-
-void Game::updateState() { 
+void Game::nextFrame() { 
     
     input.recomputeFromRawInput(raw_input);
     
@@ -242,29 +213,22 @@ void Game::updateState() {
     }
     input.toggle_fullscreen = false; // Just in case
 
+    gameplay = next_gameplay;
+
     switch(gameplay) {
-    case GAMEPLAY_WELCOME_SCREEN: welcome_screen.updateState(input); break;
-    case GAMEPLAY_WORLD_MAP:      world_map     .updateState(input); break;
-    case GAMEPLAY_DUNGEON:        dungeon       .updateState(input); break;
+    case GameplayType::WELCOME_SCREEN: next_gameplay = welcome_screen.nextFrame(input, getFPS()); break;
+    case GameplayType::WORLD_MAP:      next_gameplay = world_map     .nextFrame(input, getFPS()); break;
+    case GameplayType::DUNGEON:        next_gameplay = dungeon       .nextFrame(input, getFPS()); break;
     }
-    
     
     raw_input.clearClicked();
 }
 
-void Game::updateVisuals() {
-    switch(gameplay) {
-    case GAMEPLAY_WELCOME_SCREEN: welcome_screen.updateVisuals(); break;
-    case GAMEPLAY_WORLD_MAP:      world_map     .updateVisuals(); break;
-    case GAMEPLAY_DUNGEON:        dungeon       .updateVisuals(); break;
-    }
-}
-
 void Game::renderGL() const { 
     switch(gameplay) {
-    case GAMEPLAY_WELCOME_SCREEN: welcome_screen.renderGL(); break;
-    case GAMEPLAY_WORLD_MAP:      world_map     .renderGL(); break;
-    case GAMEPLAY_DUNGEON:        dungeon       .renderGL(); break;
+    case GameplayType::WELCOME_SCREEN: welcome_screen.renderGL(); break;
+    case GameplayType::WORLD_MAP:      world_map     .renderGL(); break;
+    case GameplayType::DUNGEON:        dungeon       .renderGL(); break;
     }
 }
 
@@ -286,8 +250,6 @@ bool Game::saveToFile(std::string path) const {
     assert("This function was not implemented yet !" && false);
     return false;
 }
-
-
 
 
 
