@@ -39,7 +39,9 @@ private:
     static void setupGL();
     static void cleanupGL();
 
-    void renderGL_priv(const glm::mat4 &viewprojmatrix, const glm::vec3 &viewpos) const;
+    void renderGL_priv(
+        const glm::mat4 &viewprojmatrix, 
+        const glm::vec3 &viewpos) const;
     GLuint vbo, vao;
     static GLuint static_vbo;
     static GLuint prog;

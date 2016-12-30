@@ -70,9 +70,7 @@ void Input::recomputeFromRawInput(const RawInput& raw) {
     if(raw.held.right || raw.held.d)
         axis.x += 1;
 
-    if(raw.held.space 
-    || raw.held.enter
-    || raw.held.mouseleft)
+    if(raw.held.space || raw.held.enter)
         interact = true;
 
     if(raw.held.esc)

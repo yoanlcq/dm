@@ -3,14 +3,6 @@
 
 namespace dm {
 
-struct DungeonStyleGL {
-    glm::vec3 clearcolor;
-    GLuint tex_wall;
-    GLuint tex_ground;
-    GLuint tex_ceiling;
-};
-
-
 // ENEMY0 is not "the first enemy", it is the first of 
 // possible types an enemy can be.
 // Names which end by a number might (should) be
@@ -54,17 +46,30 @@ enum class Tile {
 };
 
 struct TileSet : public PPMImage {
+    glm::ivec2 spawn_pos;
+    float spawn_direction_angle;
+
+    static bool isTileCage(Tile tile);
+    static bool isTileKey(Tile tile);
+    static bool isTileEnemy(Tile tile);
+    static bool isTileFriend(Tile tile);
+    static bool isTileWalkable(Tile tile);
     bool isValid() const;
+    void recomputeInfo();
+    static Tile rgb24ToTile(rgb24 rgb);
+    Tile getTileAt(size_t x, size_t y) const;
+    void fillWallQuadBatch(GLQuadBatch &walls) const;
 };
+
 
 typedef signed int LifeValue; 
 // Not unsigned, to prevent accidental subtraction overflows.
-
 
 struct Character {
     LifeValue       life;
     LifeValue       life_max;
     Lerp<glm::vec3> position;
+    Lerp<float>     angle_y; // in radians
     float           speed; // Tiles per second.
     float           angular_speed; // 90° rotations per second.
 };
@@ -121,6 +126,14 @@ struct Dungeon {
     GLQuadBatch        walls_quad_batch;
     GLQuadBatch        ground_quad_batch;
     GLQuadBatch        ceiling_quad_batch;
+    GLQuadBatch        cages_quad_batch;
+    GLQuadBatch        doors_quad_batch;
+    GLQuadBatch        billboards_quad_batch; // enemies, friends, keys
+    GLQuadBatch        stairs_quad_batch;
+    // TODO world coords = tile coords ?
+    // TODO water ?
+    // TODO HUD ? Map on HUD ?
+    // TODO Dialogues ?
     bool               should_render_ceiling;
 
     size_t               floor_index;

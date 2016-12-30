@@ -108,6 +108,8 @@ EnsureGLContext::EnsureGLContext(Game *g) {
 
     if(SDL_GL_SetSwapInterval(1) < 0)
         cerr << "Warning : Vsync is disabled. The FPS may skyrocket." << endl;
+
+    SDL_ShowCursor(SDL_DISABLE);
 }
 
 

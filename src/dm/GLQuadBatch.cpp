@@ -163,17 +163,26 @@ void GLQuadBatch::updateInstancesVBO() const {
 }
 
 void GLQuadBatch::renderGL(const PerspectiveView &view) const {
-    renderGL_priv(view.getViewProjectionMatrix(), view.position.getCurrent());
+    renderGL_priv(
+        view.getViewProjectionMatrix(), 
+        view.position.getCurrent()
+    );
 }
 
 void GLQuadBatch::renderGL_HUD(const OrthographicView &view) const {
     assert(glIsEnabled(GL_DEPTH_TEST));
     glDisable(GL_DEPTH_TEST);
-    renderGL_priv(view.getViewProjectionMatrix(), vec3(view.position.getCurrent(), 0));
+    renderGL_priv(
+        view.getViewProjectionMatrix(), 
+        vec3(view.position.getCurrent(), 0)
+    );
     glEnable(GL_DEPTH_TEST);
 }
 
-void GLQuadBatch::renderGL_priv(const mat4 &viewprojmatrix, const vec3 &viewpos) const {
+void GLQuadBatch::renderGL_priv(
+    const mat4 &viewprojmatrix, 
+    const vec3 &viewpos) const 
+{
     glUseProgram(prog);
 
     assert(shadow_factor>=0 && shadow_factor<=1);
