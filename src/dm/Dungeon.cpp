@@ -112,7 +112,7 @@ void Dungeon::prepare(size_t i) {
 
 GameplayType Dungeon::nextFrame(const Input &input, uint32_t fps) {
     const float move_speed(3.2f); // tiles per second
-    const float turn_speed(1.4f); // quarters per second
+    const float turn_speed(2.4f); // quarters per second
     view.angle_y.prev += input.turnaround*turn_speed*M_PI*.5f/float(fps);
     vec3 mov = rotate(mat3(), view.angle_y.prev - float(M_PI)/2.f)
              * (vec3(input.axis.x, input.axis.y, 0)*move_speed/float(fps));

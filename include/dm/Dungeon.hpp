@@ -29,12 +29,12 @@ enum class Tile {
     CAGE3   = 0x0FC0FF,
     CAGE4   = 0x0FB0FF,
     CAGE5   = 0x0FA0FF,
-    KEY0    = 0x0FF0F0,
-    KEY2    = 0x0FE0F0,
-    KEY1    = 0x0FD0F0,
-    KEY3    = 0x0FC0F0,
-    KEY4    = 0x0FB0F0,
-    KEY5    = 0x0FA0F0,
+    KEY0    = 0x0FF00F,
+    KEY2    = 0x0FE00F,
+    KEY1    = 0x0FD00F,
+    KEY3    = 0x0FC00F,
+    KEY4    = 0x0FB00F,
+    KEY5    = 0x0FA00F,
     ENEMY0  = 0xFF00FF,
     ENEMY1  = 0xFF00FE,
     ENEMY2  = 0xFF00FD,
@@ -53,7 +53,7 @@ enum class Tile {
     COUNT // Keep last
 };
 
-typedef Image<Tile> TileSet;
+typedef PPMImage TileSet;
 
 typedef signed int LifeValue; 
 // Not unsigned, to prevent accidental subtraction overflows.
@@ -151,7 +151,6 @@ private:
     static GLuint tex_cave_wall     ;
     static GLuint tex_mansion_ground;
     static GLuint tex_mansion_wall  ;
-
 };
 
 
