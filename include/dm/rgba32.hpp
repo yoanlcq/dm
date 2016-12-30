@@ -7,5 +7,11 @@ struct rgba32 {
     rgba32(uint8_t r=0, uint8_t g=0, uint8_t b=0, uint8_t a=0);
     ~rgba32();
 };
+struct rgb24 {
+    uint8_t data[3];
+    rgb24(uint8_t r=0, uint8_t g=0, uint8_t b=0);
+    ~rgb24();
+};
+
 
 }

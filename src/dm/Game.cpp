@@ -220,6 +220,10 @@ void Game::nextFrame() {
     case GameplayType::WORLD_MAP:      next_gameplay = world_map     .nextFrame(input, getFPS()); break;
     case GameplayType::DUNGEON:        next_gameplay = dungeon       .nextFrame(input, getFPS()); break;
     }
+    if(gameplay == GameplayType::WORLD_MAP 
+    && next_gameplay == GameplayType::DUNGEON) {
+        dungeon.prepare(world_map.current_node_index);
+    }
     
     raw_input.clearClicked();
 }

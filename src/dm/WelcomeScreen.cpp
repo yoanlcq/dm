@@ -53,7 +53,7 @@ GameplayType WelcomeScreen::nextFrame(const Input &input, uint32_t fps) {
 
     if(is_in_transition) {
         bg_color.progress += 1.4f/fps;
-        quad_batch.rgba_fx_factor = clamp<float>(bg_color.progress,0,1);
+        quad_batch.rgb_fx_factor = clamp<float>(bg_color.progress,0,1);
     }
 
     vec3 c = bg_color.getCurrent();

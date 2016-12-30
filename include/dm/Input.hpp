@@ -21,6 +21,7 @@ struct Input {
     glm::ivec2 axis;
     int turnaround;
     bool interact;
+    bool escape;
     bool toggle_fullscreen;
     void recomputeFromRawInput(const RawInput&);
 };

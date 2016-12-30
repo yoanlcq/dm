@@ -14,8 +14,10 @@ struct Lerp {
     float progress;
 
     Lerp() { memset(this, 0, sizeof *this); }
-    Lerp(T curr)         : prev(curr), next(curr), progress(0) {}
-    Lerp(T prev, T next) : prev(prev), next(next), progress(0) {}
+    Lerp(T curr)
+        : prev(curr), next(curr), progress(0) {}
+    Lerp(T prev, T next, float progress=0) 
+        : prev(prev), next(next), progress(progress) {}
     ~Lerp() {}
 
     void reset(T curr = T({})) {
@@ -29,5 +31,14 @@ struct Lerp {
         return getCurrent();
     }
 };
+
+
+template<typename T> 
+T lerp(T prev, T next, float progress) {
+    return Lerp<T>(prev, next, progress).getCurrent();
+}
+static inline float lerpf(float prev, float next, float progress) {
+    return lerp<float>(prev, next, progress);
+}
 
 } // namespace dm

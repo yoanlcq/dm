@@ -75,6 +75,9 @@ void Input::recomputeFromRawInput(const RawInput& raw) {
     || raw.held.mouseleft)
         interact = true;
 
+    if(raw.held.esc)
+        escape = true;
+
     if(raw.clicked.f11)
         toggle_fullscreen = true;
 }

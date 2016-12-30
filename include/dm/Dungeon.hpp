@@ -16,7 +16,7 @@ struct DungeonStyleGL {
 // Names which end by a number might (should) be
 // renamed to something more explicit later.
 // Eg. "KEY_BLUE" instead of "KEY2".
-enum Tile {
+enum class Tile {
     GROUND  = 0xFFFFFF,
     WALL    = 0x000000,
     DOOR    = 0xAA7722,
@@ -35,12 +35,12 @@ enum Tile {
     KEY3    = 0x0FC0F0,
     KEY4    = 0x0FB0F0,
     KEY5    = 0x0FA0F0,
-    ENEMY0  = 0xFF000F,
-    ENEMY1  = 0xFF000E,
-    ENEMY2  = 0xFF000D,
-    ENEMY3  = 0xFF000C,
-    ENEMY4  = 0xFF000B,
-    ENEMY5  = 0xFF000A,
+    ENEMY0  = 0xFF00FF,
+    ENEMY1  = 0xFF00FE,
+    ENEMY2  = 0xFF00FD,
+    ENEMY3  = 0xFF00FC,
+    ENEMY4  = 0xFF00FB,
+    ENEMY5  = 0xFF00FA,
     FRIEND0 = 0xFFFF0F,
     FRIEND1 = 0xFFFF0E,
     FRIEND2 = 0xFFFF0D,
@@ -113,13 +113,8 @@ struct Enemy3 : public Enemy { /*Enemy3(); ~Enemy3(); */};
 struct Enemy4 : public Enemy { /*Enemy4(); ~Enemy4(); */};
 struct Enemy5 : public Enemy { /*Enemy5(); ~Enemy5(); */};
 
-enum FloorStyle {
-    OUTSIDE_GRASS,
-    INSIDE_ROCK
-};
 
 struct Floor {
-    FloorStyle style;
     TileSet tiles;
     std::vector<Enemy> enemies;
     std::vector<Friend> friends;
@@ -127,16 +122,20 @@ struct Floor {
 };
 
 
-typedef size_t DungeonIndex;
 struct Dungeon {
+    PerspectiveView    view;
     static Lerp<float> fade_transition;
     std::vector<Floor> all_floors;
     Floor*             floor;
-    PerspectiveView    view;
+    GLQuadBatch        walls_quad_batch;
+    GLQuadBatch        ground_quad_batch;
+    GLQuadBatch        ceiling_quad_batch;
+    bool               should_render_ceiling;
 
      Dungeon(glm::ivec2 viewport_size);
     ~Dungeon();
 
+    void prepare(size_t i);
     void reshape(glm::ivec2 new_viewport_size);
     GameplayType nextFrame(const Input &input, uint32_t fps);
     void renderGL() const;
@@ -145,6 +144,14 @@ private:
     static size_t refcount;
     static void setupGL();
     static void cleanupGL();
+    static GLuint tex_grass_ground  ;
+    static GLuint tex_grass_wall    ;
+    static GLuint tex_grass_sky     ;
+    static GLuint tex_cave_ground   ;
+    static GLuint tex_cave_wall     ;
+    static GLuint tex_mansion_ground;
+    static GLuint tex_mansion_wall  ;
+
 };
 
 

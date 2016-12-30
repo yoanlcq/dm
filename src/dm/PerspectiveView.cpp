@@ -22,7 +22,7 @@ vec3 PerspectiveView::getFrontVector() const {
 }
 mat4 PerspectiveView::getViewMatrix() const {
     vec3 pos = position.getCurrent();
-    return lookAt(pos, pos, vec3(0,1,0));
+    return lookAt(pos, pos+getFrontVector(), vec3(0,1,0));
 }
 mat4 PerspectiveView::getProjectionMatrix() const {
     return perspective(

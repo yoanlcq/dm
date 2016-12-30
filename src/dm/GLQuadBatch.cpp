@@ -5,18 +5,26 @@ using namespace glm;
 
 namespace dm {
 
+GLQuadBatch::QuadInstance::QuadInstance(mat4 mdl, vec2 sprpos, vec2 sprsize) 
+    : modelmatrix(mdl), 
+      sprite_pos(sprpos), 
+      sprite_size(sprsize)
+    {}
+
 size_t GLQuadBatch::refcount(0);
 GLuint GLQuadBatch::static_vbo(0);
 GLuint GLQuadBatch::prog(0);
-GLint  GLQuadBatch::u_viewprojmatrix_loc(-1);
-GLint  GLQuadBatch::u_viewposition_loc  (-1);
-GLint  GLQuadBatch::u_texture_loc       (-1);
-GLint  GLQuadBatch::u_shadow_factor_loc (-1);
-GLint  GLQuadBatch::u_fog_factor_loc    (-1);
-GLint  GLQuadBatch::u_fogdistance_loc   (-1);
-GLint  GLQuadBatch::u_fogcolor_loc      (-1);
-GLint  GLQuadBatch::u_rgba_fx_loc       (-1);
-GLint  GLQuadBatch::u_rgba_fx_factor_loc(-1);
+GLint  GLQuadBatch::u_viewprojmatrix_loc  (-1);
+GLint  GLQuadBatch::u_viewposition_loc    (-1);
+GLint  GLQuadBatch::u_texture_loc         (-1);
+GLint  GLQuadBatch::u_shadow_factor_loc   (-1);
+GLint  GLQuadBatch::u_fog_factor_loc      (-1);
+GLint  GLQuadBatch::u_fogdistance_loc     (-1);
+GLint  GLQuadBatch::u_fogcolor_loc        (-1);
+GLint  GLQuadBatch::u_rgba_fx_loc         (-1);
+GLint  GLQuadBatch::u_rgb_fx_factor_loc   (-1);
+GLint  GLQuadBatch::u_alpha_fx_factor_loc (-1);
+GLint  GLQuadBatch::u_src_alpha_factor_loc(-1);
 const GLuint   GLQuadBatch::ATTRIB_POSITION   (0);
 const GLuint   GLQuadBatch::ATTRIB_TEXCOORDS  (1);
 const GLuint   GLQuadBatch::ATTRIB_MODELMATRIX(2);
@@ -35,24 +43,28 @@ void GLQuadBatch::setupGL() {
         "res/shaders/QuadBatch.frag"
     ));
 
-    u_viewprojmatrix_loc = glGetUniformLocation(prog, "u_viewprojmatrix");
-    u_viewposition_loc   = glGetUniformLocation(prog, "u_viewposition");
-    u_texture_loc        = glGetUniformLocation(prog, "u_texture");
-    u_shadow_factor_loc  = glGetUniformLocation(prog, "u_shadow_factor");
-    u_fog_factor_loc     = glGetUniformLocation(prog, "u_fog_factor");
-    u_fogdistance_loc    = glGetUniformLocation(prog, "u_fogdistance");
-    u_fogcolor_loc       = glGetUniformLocation(prog, "u_fogcolor");
-    u_rgba_fx_loc        = glGetUniformLocation(prog, "u_rgba_fx");
-    u_rgba_fx_factor_loc = glGetUniformLocation(prog, "u_rgba_fx_factor");
-    assert(u_viewprojmatrix_loc != -1);
-    assert(u_viewposition_loc   != -1);
-    assert(u_texture_loc        != -1);
-    assert(u_shadow_factor_loc  != -1);
-    assert(u_fog_factor_loc     != -1);
-    assert(u_fogdistance_loc    != -1);
-    assert(u_fogcolor_loc       != -1);
-    assert(u_rgba_fx_loc        != -1);
-    assert(u_rgba_fx_factor_loc != -1);
+    u_viewprojmatrix_loc   = glGetUniformLocation(prog, "u_viewprojmatrix");
+    u_viewposition_loc     = glGetUniformLocation(prog, "u_viewposition");
+    u_texture_loc          = glGetUniformLocation(prog, "u_texture");
+    u_shadow_factor_loc    = glGetUniformLocation(prog, "u_shadow_factor");
+    u_fog_factor_loc       = glGetUniformLocation(prog, "u_fog_factor");
+    u_fogdistance_loc      = glGetUniformLocation(prog, "u_fogdistance");
+    u_fogcolor_loc         = glGetUniformLocation(prog, "u_fogcolor");
+    u_rgba_fx_loc          = glGetUniformLocation(prog, "u_rgba_fx");
+    u_rgb_fx_factor_loc    = glGetUniformLocation(prog, "u_rgb_fx_factor");
+    u_alpha_fx_factor_loc  = glGetUniformLocation(prog, "u_alpha_fx_factor");
+    u_src_alpha_factor_loc = glGetUniformLocation(prog, "u_src_alpha_factor");
+    assert(u_viewprojmatrix_loc   != -1);
+    assert(u_viewposition_loc     != -1);
+    assert(u_texture_loc          != -1);
+    assert(u_shadow_factor_loc    != -1);
+    assert(u_fog_factor_loc       != -1);
+    assert(u_fogdistance_loc      != -1);
+    assert(u_fogcolor_loc         != -1);
+    assert(u_rgba_fx_loc          != -1);
+    assert(u_rgb_fx_factor_loc    != -1);
+    assert(u_alpha_fx_factor_loc  != -1);
+    assert(u_src_alpha_factor_loc != -1);
 
     glGenBuffers(1, &static_vbo);
     hope(static_vbo);
@@ -84,13 +96,15 @@ GLQuadBatch:: GLQuadBatch() {
     glGenBuffers(1, &vbo);
     hope(vbo);
 
-    texture_unit   = TextureUnit::INVALID_UNIT;
-    shadow_factor  = 0;
-    fog_factor     = 0;
-    fogdistance    = 0.001;
-    fogcolor       = vec3(0,0,0);
-    rgba_fx        = vec4(0,0,0,1);
-    rgba_fx_factor = 0;
+    texture_unit     = TextureUnit::INVALID_UNIT;
+    shadow_factor    = 0;
+    fog_factor       = 0;
+    fogdistance      = 0.001;
+    fogcolor         = vec3(0,0,0);
+    rgba_fx          = vec4(0,0,0,1);
+    rgb_fx_factor    = 0;
+    alpha_fx_factor  = 0;
+    src_alpha_factor = 1;
 
 
     glBindVertexArray(vao);
@@ -165,7 +179,9 @@ void GLQuadBatch::renderGL_priv(const mat4 &viewprojmatrix, const vec3 &viewpos)
     assert(shadow_factor>=0 && shadow_factor<=1);
     assert(fog_factor>=0 && fog_factor<=1);
     assert(fogdistance > 0 && "fogdistance can't be zero, the fragment shader relies on it.");
-    assert(rgba_fx_factor>=0 && rgba_fx_factor<=1);
+    assert(rgb_fx_factor>=0 && rgb_fx_factor<=1);
+    assert(alpha_fx_factor>=0 && alpha_fx_factor<=1);
+    assert(src_alpha_factor>=0 && src_alpha_factor<=1);
 
     glUniformMatrix4fv(u_viewprojmatrix_loc, 1, GL_FALSE, value_ptr(viewprojmatrix));
     glUniform3fv(u_viewposition_loc, 1, value_ptr(viewpos));
@@ -175,7 +191,9 @@ void GLQuadBatch::renderGL_priv(const mat4 &viewprojmatrix, const vec3 &viewpos)
     glUniform1f(u_fogdistance_loc, fogdistance);
     glUniform3fv(u_fogcolor_loc, 1, value_ptr(fogcolor));
     glUniform4fv(u_rgba_fx_loc, 1, value_ptr(rgba_fx));
-    glUniform1f(u_rgba_fx_factor_loc, rgba_fx_factor);
+    glUniform1f(u_rgb_fx_factor_loc, rgb_fx_factor);
+    glUniform1f(u_alpha_fx_factor_loc, alpha_fx_factor);
+    glUniform1f(u_src_alpha_factor_loc, src_alpha_factor);
     
     glBindVertexArray(vao);
     glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 4, instances.size());

@@ -18,6 +18,7 @@
 #include <glm/gtc/random.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/rotate_vector.hpp>
+#include <glm/gtx/matrix_transform_2d.hpp>
 
 
 // Macro for when we need a condition to be true, and its falsehood
@@ -43,7 +44,7 @@
 #include <dm/GLProgram.hpp>
 #include <dm/GLTexture.hpp>
 #include <dm/GLQuadBatch.hpp>
-#include <dm/GLMonospaceText.hpp>
+#include <dm/GLText.hpp>
 #include <dm/Input.hpp>
 #include <dm/FpsLimiter.hpp>
 #include <dm/GameplayType.hpp>

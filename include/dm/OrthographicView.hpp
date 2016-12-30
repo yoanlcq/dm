@@ -13,6 +13,8 @@ struct OrthographicView {
     ~OrthographicView();
 
     void reshape(glm::ivec2 new_viewport_size);
+    float getAspectRatio() const;
+    float getHalfHeight() const;
     glm::mat4 getViewMatrix() const;
     glm::mat4 getProjectionMatrix() const;
     glm::mat4 getViewProjectionMatrix() const;

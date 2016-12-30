@@ -2,8 +2,8 @@
 #include <dm/dm.hpp>
 namespace dm {
 
-struct PPMImage : public Image<rgba32> {
-    static bool loadFromFile(const std::string &filepath);
+struct PPMImage : public Image<rgb24> {
+    bool loadFromFile(const std::string &filepath);
 };
 
 }

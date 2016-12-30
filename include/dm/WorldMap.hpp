@@ -5,22 +5,22 @@
 namespace dm {
 
 struct WorldMap {
+
+    static constexpr size_t NODE_COUNT = 5;
+
     OrthographicView view;
-    Lerp<float>   fader_opacity;
-    GLQuadBatch   bg_quad_batch;
-    GLQuadBatch   hero_quad_batch;
-    GLQuadBatch   fader_quad_batch;
-    static GLuint bg_tex;
-    static GLuint hero_tex;
+    Lerp<float>      fader_opacity;
+    GLQuadBatch      bg_quad_batch;
+    GLQuadBatch      hero_quad_batch;
+    GLQuadBatch      fader_quad_batch;
+    GLText           node_text[NODE_COUNT];
+    size_t           current_node_index;
+    size_t           next_node_index;
+    Lerp<glm::vec3>  hero_position;
+    bool             is_starting_dungeon;
+
+    static GLuint tex;
     static GLuint fader_tex;
-    struct Node {
-        DungeonIndex dungeon_index;
-        glm::vec2 position;
-        size_t right, up, left, down; 
-    };
-    typedef size_t NodeIndex;
-    std::vector<Node> nodes;
-    NodeIndex current_node;
 
      WorldMap(glm::ivec2 viewport_size);
     ~WorldMap();

@@ -41,8 +41,8 @@ static GLuint configureTexture(GLenum format, const void *pixels, size_t w, size
     glBindTexture(GL_TEXTURE_2D, texid);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, 
                  format, GL_UNSIGNED_BYTE, pixels);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glGenerateMipmap(GL_TEXTURE_2D);
@@ -52,6 +52,14 @@ static GLuint configureTexture(GLenum format, const void *pixels, size_t w, size
 
 GLuint GLTexture_fromRgba32(rgba32 rgba) {
     return configureTexture(GL_RGBA, &rgba, 1, 1);
+}
+
+GLuint GLTexture_fromRgba32Image(const Image<rgba32> &img) {
+    return configureTexture(GL_RGBA, img.pixels, img.w, img.h);
+}
+
+GLuint GLTexture_fromRgb24Image(const Image<rgb24> &img) {
+    return configureTexture(GL_RGB, img.pixels, img.w, img.h);
 }
 
 GLuint GLTexture_fromFile(const string &filepath) {

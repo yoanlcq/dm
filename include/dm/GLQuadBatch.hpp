@@ -13,6 +13,7 @@ struct GLQuadBatch {
         glm::mat4 modelmatrix;
         glm::vec2 sprite_pos;  // Bottom-left of sprite, in texture space
         glm::vec2 sprite_size; // Width-Height of sprite, in texture space
+        QuadInstance(glm::mat4 mdl=glm::mat4(), glm::vec2 sprpos=glm::vec2(0,0), glm::vec2 sprsize=glm::vec2(1,1));
     };
 
     std::vector<QuadInstance> instances;
@@ -22,7 +23,9 @@ struct GLQuadBatch {
     GLfloat                   fogdistance;   // Distance at which objects are fully within the fog.
     glm::vec3                 fogcolor;      // Duh !
     glm::vec4                 rgba_fx;       // A color to mix with the quad's texture
-    GLfloat                   rgba_fx_factor; // How much said color is used.
+    GLfloat                   rgb_fx_factor; // How much said color's RGB is used.
+    GLfloat                   alpha_fx_factor; // Same for alpha.
+    GLfloat                   src_alpha_factor; // This time, it affects the alpha pulled from the texture.
 
     GLQuadBatch();
     ~GLQuadBatch();
@@ -48,7 +51,9 @@ private:
     static GLint u_fogdistance_loc;
     static GLint u_fogcolor_loc;
     static GLint u_rgba_fx_loc;
-    static GLint u_rgba_fx_factor_loc;
+    static GLint u_rgb_fx_factor_loc;
+    static GLint u_alpha_fx_factor_loc;
+    static GLint u_src_alpha_factor_loc;
     static const GLuint   ATTRIB_POSITION;
     static const GLuint   ATTRIB_TEXCOORDS;
     static const GLuint   ATTRIB_MODELMATRIX;
