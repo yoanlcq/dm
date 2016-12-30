@@ -15,7 +15,7 @@ struct Image {
         w = nw;
         h = nh;
     }
-    T *operator[](int y) { return &pixels[y*w]; }
+    T *operator[](int y) const { return &pixels[y*w]; }
     void flipVertically() {
         T *line = new T[w];
         for(int yh=0, yl=h-1 ; yh < yl ; ++yh, --yl) {

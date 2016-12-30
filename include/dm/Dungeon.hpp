@@ -22,7 +22,7 @@ enum class Tile {
     DOOR    = 0xAA7722,
     WATER   = 0x0000FF,
     START   = 0xFF0000,
-    EXIT    = 0x0000FF,
+    EXIT    = 0x00FF00,
     CAGE0   = 0x0FF0FF, 
     CAGE1   = 0x0FE0FF,
     CAGE2   = 0x0FD0FF,
@@ -53,7 +53,9 @@ enum class Tile {
     COUNT // Keep last
 };
 
-typedef PPMImage TileSet;
+struct TileSet : public PPMImage {
+    bool isValid() const;
+};
 
 typedef signed int LifeValue; 
 // Not unsigned, to prevent accidental subtraction overflows.
@@ -63,9 +65,8 @@ struct Character {
     LifeValue       life;
     LifeValue       life_max;
     Lerp<glm::vec3> position;
-    Lerp<glm::vec2> direction; // Which way it is facing.
-    float           speed; // How fast it moves.
-    float           angular_speed; // How fast it turns around.
+    float           speed; // Tiles per second.
+    float           angular_speed; // 90° rotations per second.
 };
 
 struct Friend : public Character {
@@ -114,23 +115,19 @@ struct Enemy4 : public Enemy { /*Enemy4(); ~Enemy4(); */};
 struct Enemy5 : public Enemy { /*Enemy5(); ~Enemy5(); */};
 
 
-struct Floor {
-    TileSet tiles;
-    std::vector<Enemy> enemies;
-    std::vector<Friend> friends;
-    Hero hero;
-};
-
-
 struct Dungeon {
     PerspectiveView    view;
     static Lerp<float> fade_transition;
-    std::vector<Floor> all_floors;
-    Floor*             floor;
     GLQuadBatch        walls_quad_batch;
     GLQuadBatch        ground_quad_batch;
     GLQuadBatch        ceiling_quad_batch;
     bool               should_render_ceiling;
+
+    size_t               floor_index;
+    Hero                 hero;
+    TileSet              tiles;
+    std::vector<Enemy>   enemies;
+    std::vector<Friend>  friends;
 
      Dungeon(glm::ivec2 viewport_size);
     ~Dungeon();

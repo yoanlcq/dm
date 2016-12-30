@@ -5,6 +5,64 @@ using namespace glm;
 
 namespace dm {
 
+
+bool TileSet::isValid() const {
+#define HELPER(cst) \
+    if(tile.r == ((unsigned(Tile::cst)>>16)&0xFF) \
+    && tile.g == ((unsigned(Tile::cst)>> 8)&0xFF) \
+    && tile.b == ((unsigned(Tile::cst)>> 0)&0xFF)) \
+        continue;
+    bool is_valid = true;
+    for(size_t y=0 ; y<h ; ++y) for(size_t x=0 ; x<w ; ++x) {
+        rgb24 tile = (*this)[y][x];
+
+        HELPER(GROUND );
+        HELPER(WALL   );
+        HELPER(DOOR   );
+        HELPER(WATER  );
+        HELPER(START  );
+        HELPER(EXIT   );
+        HELPER(CAGE0  ); 
+        HELPER(CAGE1  );
+        HELPER(CAGE2  );
+        HELPER(CAGE3  );
+        HELPER(CAGE4  );
+        HELPER(CAGE5  );
+        HELPER(KEY0   );
+        HELPER(KEY2   );
+        HELPER(KEY1   );
+        HELPER(KEY3   );
+        HELPER(KEY4   );
+        HELPER(KEY5   );
+        HELPER(ENEMY0 );
+        HELPER(ENEMY1 );
+        HELPER(ENEMY2 );
+        HELPER(ENEMY3 );
+        HELPER(ENEMY4 );
+        HELPER(ENEMY5 );
+        HELPER(FRIEND0);
+        HELPER(FRIEND1);
+        HELPER(FRIEND2);
+        HELPER(FRIEND3);
+        HELPER(FRIEND4);
+        HELPER(FRIEND5);
+
+        cerr << "Warning : the tile at (" << x << ","
+              << y << ")'s color is unrecognized (value:"
+              << hex 
+              << "0x"
+              << unsigned(tile.r)
+              << unsigned(tile.g)
+              << unsigned(tile.b)
+              << ")" << endl;
+        is_valid = false;
+    }
+    return is_valid;
+#undef HELPER
+}
+
+
+
 size_t Dungeon::refcount(0);
 GLuint Dungeon::tex_grass_ground  (0);
 GLuint Dungeon::tex_grass_wall    (0);
@@ -108,14 +166,18 @@ void Dungeon::prepare(size_t i) {
         glClearColor(sky.r, sky.g, sky.b, 1);
     } else
         glClearColor(0, 0, .04, 1);
+
+    hero.speed = 3.2f;
+    hero.angular_speed = 2.4f;
+    floor_index = 0;
+    hope(tiles.loadFromFile("res/missingno_e" + to_string(floor_index) + ".ppm"));
+    hope(tiles.isValid());
 }
 
 GameplayType Dungeon::nextFrame(const Input &input, uint32_t fps) {
-    const float move_speed(3.2f); // tiles per second
-    const float turn_speed(2.4f); // quarters per second
-    view.angle_y.prev += input.turnaround*turn_speed*M_PI*.5f/float(fps);
+    view.angle_y.prev += input.turnaround*hero.angular_speed*M_PI*.5f/float(fps);
     vec3 mov = rotate(mat3(), view.angle_y.prev - float(M_PI)/2.f)
-             * (vec3(input.axis.x, input.axis.y, 0)*move_speed/float(fps));
+             * (vec3(input.axis.x, input.axis.y, 0)*hero.speed/float(fps));
     view.position.prev.x += mov.x;
     view.position.prev.z -= mov.y;
 
