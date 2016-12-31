@@ -7,7 +7,7 @@ struct GLText {
     GLQuadBatch quad_batch;
     std::vector<std::string> lines;
     glm::vec3   position; // Bottom-left of 1st line's 1st character.
-    float       height; // In world coords.
+    float       line_height; // In world coords.
     glm::vec4   rgba;
 
     static GLuint    tex;

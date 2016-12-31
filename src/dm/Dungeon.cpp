@@ -187,7 +187,10 @@ void Dungeon::cleanupGL() {
     glDeleteTextures(1, &tex_mansion_wall  );
 }
 
-Dungeon:: Dungeon(ivec2 viewport_size) : view(viewport_size) {
+Dungeon:: Dungeon(ivec2 viewport_size) 
+    : view(viewport_size),
+      hud_view(viewport_size)
+{
     if(!refcount)
         setupGL();
     ++refcount;
@@ -197,8 +200,24 @@ Dungeon::~Dungeon() {
     if(!refcount)
         cleanupGL();
 }
+
+
 void Dungeon::reshape(ivec2 new_viewport_size) {
+    
     view.reshape(new_viewport_size);
+    hud_view.reshape(new_viewport_size);
+
+    dialogue.position = vec3(
+        -dialogue.getLineWidth(0)/2.f,
+        -hud_view.getHalfHeight() + 2.f*dialogue.line_height,
+        0
+    );
+    dialogue.updateQuadBatch();
+
+    dialogue_box_quad_batch.instances[0].modelmatrix 
+        = translate(mat4(), vec3(0, 2.f*dialogue.line_height-hud_view.getHalfHeight(), 0))
+        * scale(vec3(dialogue.getLineWidth(0), 2.f*dialogue.line_height, 0));
+    dialogue_box_quad_batch.updateInstancesVBO();
 }
 
 
@@ -298,6 +317,13 @@ void Dungeon::fillFloorDataFromTileSet() {
 
 
 void Dungeon::prepare(size_t i) {
+
+    walls_quad_batch.instances.clear();
+    ground_quad_batch.instances.clear();
+    ceiling_quad_batch.instances.clear();
+    doors_quad_batch.instances.clear();
+    trans_quad_batch.instances.clear();
+
     // Load dungeon at index i...
     switch(i) {
     case 0: case 1:
@@ -377,6 +403,17 @@ void Dungeon::prepare(size_t i) {
     trans_quad_batch.fogcolor = fogcol;
 
     trans_quad_batch.sortInstancesByDepth(view.getViewMatrix());
+
+    dialogue.lines.push_back("Oh no ! The princess was kidnapped!");
+    dialogue.lines.push_back("How's it going ?");
+    dialogue.line_height = .064f;
+    dialogue.rgba = vec4(1,1,1,1);
+    dialogue_box_quad_batch.instances.resize(1);
+    dialogue_box_quad_batch.texture_unit = TextureUnit::WORLD_MAP_FADER; // XXX intent not clear
+    dialogue_box_quad_batch.rgba_fx = vec4(0,0,0,1);
+    dialogue_box_quad_batch.alpha_fx_factor = .8;
+
+    reshape(hud_view.viewport_size);
 }
 
 static float angleClosestQuarter(float angle) {
@@ -456,6 +493,9 @@ void Dungeon::renderGL() const {
     if(should_render_ceiling)
         ceiling_quad_batch.renderGL(view);
     trans_quad_batch.renderGL(view);
+
+    dialogue_box_quad_batch.renderGL_HUD(hud_view);
+    dialogue.renderGL_HUD(hud_view);
 }
 
 } // namespace dm

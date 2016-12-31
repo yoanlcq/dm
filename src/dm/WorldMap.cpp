@@ -123,10 +123,10 @@ void WorldMap::reshape(ivec2 new_viewport_size) {
     hero_quad_batch.updateInstancesVBO();
 
     for(uint_fast32_t i=0 ; i<WorldMap::NODE_COUNT ; ++i) {
-        node_text[i].height = .05f * (800/600.f) / view.getAspectRatio();
+        node_text[i].line_height = .05f * (800/600.f) / view.getAspectRatio();
         node_text[i].position = getNodePos(this, i);
         node_text[i].position.x -= node_text[i].getLineWidth(0)/2.f;
-        node_text[i].position.y -= node_text[i].height*4.2f;
+        node_text[i].position.y -= node_text[i].line_height*4.2f;
         node_text[i].updateQuadBatch();
     }
 }

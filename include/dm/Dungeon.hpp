@@ -138,16 +138,13 @@ struct Door : public TileObject {};
 
 struct Dungeon {
     PerspectiveView    view;
+    OrthographicView   hud_view;
     static Lerp<float> fade_transition;
     GLQuadBatch        walls_quad_batch;
     GLQuadBatch        ground_quad_batch;
     GLQuadBatch        ceiling_quad_batch;
     GLQuadBatch        doors_quad_batch;
     GLQuadBatch        trans_quad_batch; // enemies, friends, cages, keys, exit
-    // TODO cages, doors, billboards, stairs
-    // TODO water ?
-    // TODO HUD ? Map on HUD ?
-    // TODO Dialogues ?
     bool               should_render_ceiling;
 
     size_t               floor_index;
@@ -158,6 +155,16 @@ struct Dungeon {
     std::vector<Key>     keys;
     std::vector<Cage>    cages;
     std::vector<Door>    doors;
+
+
+    GLText               dialogue;
+    GLQuadBatch          dialogue_box_quad_batch;
+
+    // TODO cages, doors, billboards, stairs
+    // TODO water ?
+    // TODO HUD ? Map on HUD ?
+    // TODO Dialogues ?
+
 
      Dungeon(glm::ivec2 viewport_size);
     ~Dungeon();

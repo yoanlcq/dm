@@ -21,7 +21,7 @@ void GLText::cleanupGL() {
 
 GLText:: GLText() 
     : position(vec3(0,0,0)),
-      height(1),
+      line_height(1),
       rgba(0,0,0,1)
 {
     if(!refcount)
@@ -46,17 +46,17 @@ static const float CHAR_RATIO = CHAR_SZ.x/CHAR_SZ.y;
 
 
 float GLText::getLineWidth(size_t i) const {
-    return lines[i].length()*CHAR_RATIO*height;
+    return lines[i].length()*CHAR_RATIO*line_height;
 }
 
 void GLText::updateQuadBatch() {
     quad_batch.instances.clear();
     vec3 nposition = position;
-    nposition.x += height*CHAR_RATIO/2.f;
-    nposition.y += height/2.f;
+    nposition.x += line_height*CHAR_RATIO/2.f;
+    nposition.y += line_height/2.f;
     GLQuadBatch::QuadInstance quad = {
           translate(mat4(), nposition) 
-        * scale(vec3(CHAR_RATIO*height,height,1)),
+        * scale(vec3(CHAR_RATIO*line_height,line_height,1)),
         vec2(0,0), vec2(0,0)
     };
     size_t lineno=0;
@@ -79,10 +79,10 @@ void GLText::updateQuadBatch() {
             quad.modelmatrix  = translate(quad.modelmatrix, vec3(1, 0, 0));
         }
         ++lineno;
-        nposition.y -= lineno*height;
+        nposition.y -= lineno*line_height;
         quad.modelmatrix =
               translate(mat4(), nposition) 
-            * scale(vec3(CHAR_RATIO*height,height,1));
+            * scale(vec3(CHAR_RATIO*line_height,line_height,1));
     }
     quad_batch.rgba_fx         = rgba;
     quad_batch.rgb_fx_factor   = 1;
