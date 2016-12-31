@@ -439,13 +439,7 @@ GameplayType Dungeon::nextFrame(const Input &input, uint32_t fps) {
     // Have our own axis, which disallows moving diagonally.
     ivec2 axis = input.axis;
     if(input.axis.x && input.axis.y) {
-        if(hero.position.progress) {
-            vec3 dir = hero.position.next - hero.position.prev;
-            if(fabs(dir.x) < 0.1f)
-                axis.y = 0;
-            if(fabs(dir.z) < 0.1f)
-                axis.x = 0;
-        } else axis.x = 0;
+        axis.x = 0;
     }
 
     if(!hero.position.progress) {
