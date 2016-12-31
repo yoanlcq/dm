@@ -216,7 +216,8 @@ void Dungeon::reshape(ivec2 new_viewport_size) {
 
     dialogue_box_quad_batch.instances[0].modelmatrix 
         = translate(mat4(), vec3(0, 2.f*dialogue.line_height-hud_view.getHalfHeight(), 0))
-        * scale(vec3(dialogue.getLineWidth(0), 2.f*dialogue.line_height, 0));
+        * scale(vec3(1.1f, 1.8f, 1))
+        * scale(vec3(dialogue.getLineWidth(0), 2.f*dialogue.line_height, 1));
     dialogue_box_quad_batch.updateInstancesVBO();
 }
 
@@ -379,8 +380,8 @@ void Dungeon::prepare(size_t i) {
     
     hope(tiles.loadFromFile("res/missingno_e" + to_string(floor_index) + ".ppm"));
     tiles.recomputeInfo();
-    hero.position.prev = vec3(tiles.spawn_pos.x, 0, tiles.spawn_pos.y);
-    hero.angle_y = tiles.spawn_angle_y;
+    hero.position.reset(vec3(tiles.spawn_pos.x, 0, tiles.spawn_pos.y));
+    hero.angle_y.reset(tiles.spawn_angle_y);
     
     fillFloorDataFromTileSet();
 
@@ -404,14 +405,14 @@ void Dungeon::prepare(size_t i) {
 
     trans_quad_batch.sortInstancesByDepth(view.getViewMatrix());
 
-    dialogue.lines.push_back("Oh no ! The princess was kidnapped!");
-    dialogue.lines.push_back("How's it going ?");
+    dialogue.lines.push_back("Oh no! The princess was kidnapped!");
+    dialogue.lines.push_back("Please save her!");
     dialogue.line_height = .064f;
     dialogue.rgba = vec4(1,1,1,1);
     dialogue_box_quad_batch.instances.resize(1);
     dialogue_box_quad_batch.texture_unit = TextureUnit::WORLD_MAP_FADER; // XXX intent not clear
-    dialogue_box_quad_batch.rgba_fx = vec4(0,0,0,1);
-    dialogue_box_quad_batch.alpha_fx_factor = .8;
+    dialogue_box_quad_batch.rgba_fx = vec4(0,0,0,0);
+    dialogue_box_quad_batch.alpha_fx_factor = .2;
 
     reshape(hud_view.viewport_size);
 }
@@ -437,8 +438,15 @@ GameplayType Dungeon::nextFrame(const Input &input, uint32_t fps) {
 
     // Have our own axis, which disallows moving diagonally.
     ivec2 axis = input.axis;
-    if(input.axis.x && input.axis.y)
-        axis.x = 0;
+    if(input.axis.x && input.axis.y) {
+        if(hero.position.progress) {
+            vec3 dir = hero.position.next - hero.position.prev;
+            if(fabs(dir.x) < 0.1f)
+                axis.y = 0;
+            if(fabs(dir.z) < 0.1f)
+                axis.x = 0;
+        } else axis.x = 0;
+    }
 
     if(!hero.position.progress) {
         float mov_angle = hero.angle_y.getCurrent();
