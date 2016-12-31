@@ -47,7 +47,7 @@ enum class Tile {
 
 struct TileSet : public PPMImage {
     glm::ivec2 spawn_pos;
-    float spawn_direction_angle;
+    float spawn_angle_y;
 
     static bool isTileCage(Tile tile);
     static bool isTileKey(Tile tile);
@@ -58,23 +58,34 @@ struct TileSet : public PPMImage {
     void recomputeInfo();
     static Tile rgb24ToTile(rgb24 rgb);
     Tile getTileAt(size_t x, size_t y) const;
-    void fillWallQuadBatch(GLQuadBatch &walls) const;
 };
 
 
 typedef signed int LifeValue; 
 // Not unsigned, to prevent accidental subtraction overflows.
 
+
+struct TileObject {
+    Lerp<glm::vec3> position;
+    Lerp<float>     angle_y; // in radians
+    void face(const TileObject &other);
+    glm::mat4 getModelMatrix() const;
+};
+
+struct QuadEntity {
+    size_t quad_index;
+};
+
+
 struct Character {
     LifeValue       life;
     LifeValue       life_max;
-    Lerp<glm::vec3> position;
-    Lerp<float>     angle_y; // in radians
     float           speed; // Tiles per second.
     float           angular_speed; // 90° rotations per second.
 };
 
-struct Friend : public Character {
+struct Friend : public Character, public QuadEntity, public TileObject {
+    size_t quad_index; // index to the trans_quad_batch.
     std::vector<std::string> dialogue_lines;
 };
 
@@ -98,17 +109,18 @@ struct Fighter : public Character {
     Attack basic_attack;
 };
 
+
 // A key type, and the number of those keys.
 typedef std::map<Tile, size_t> Keyring;
 
-struct Hero : public Fighter {
+struct Hero : public Fighter, public TileObject {
     Keyring keyring;
     Attack close_range_attack;
     Attack long_range_attack;
     bool is_long_range_attack_unlocked;
 };
 
-struct Enemy : public Fighter {
+struct Enemy : public Fighter, public QuadEntity, public TileObject {
     // void detectHeroAndMove(const Hero &hero);
 };
 
@@ -119,6 +131,10 @@ struct Enemy3 : public Enemy { /*Enemy3(); ~Enemy3(); */};
 struct Enemy4 : public Enemy { /*Enemy4(); ~Enemy4(); */};
 struct Enemy5 : public Enemy { /*Enemy5(); ~Enemy5(); */};
 
+struct Key  : public QuadEntity, public TileObject {};
+struct Cage : public QuadEntity, public TileObject {};
+struct Door : public TileObject {};
+
 
 struct Dungeon {
     PerspectiveView    view;
@@ -126,11 +142,9 @@ struct Dungeon {
     GLQuadBatch        walls_quad_batch;
     GLQuadBatch        ground_quad_batch;
     GLQuadBatch        ceiling_quad_batch;
-    GLQuadBatch        cages_quad_batch;
     GLQuadBatch        doors_quad_batch;
-    GLQuadBatch        billboards_quad_batch; // enemies, friends, keys
-    GLQuadBatch        stairs_quad_batch;
-    // TODO world coords = tile coords ?
+    GLQuadBatch        trans_quad_batch; // enemies, friends, cages, keys, exit
+    // TODO cages, doors, billboards, stairs
     // TODO water ?
     // TODO HUD ? Map on HUD ?
     // TODO Dialogues ?
@@ -141,6 +155,9 @@ struct Dungeon {
     TileSet              tiles;
     std::vector<Enemy>   enemies;
     std::vector<Friend>  friends;
+    std::vector<Key>     keys;
+    std::vector<Cage>    cages;
+    std::vector<Door>    doors;
 
      Dungeon(glm::ivec2 viewport_size);
     ~Dungeon();
@@ -161,6 +178,7 @@ private:
     static GLuint tex_cave_wall     ;
     static GLuint tex_mansion_ground;
     static GLuint tex_mansion_wall  ;
+    void fillFloorDataFromTileSet();
 };
 
 

@@ -151,6 +151,47 @@ GLQuadBatch::~GLQuadBatch() {
         cleanupGL();
 }
 
+struct DepthComparer {
+    mat4 viewmatrix;
+    DepthComparer(mat4 viewmatrix) : viewmatrix(viewmatrix) {}
+    bool operator()(
+        const GLQuadBatch::QuadInstance &lhs,
+        const GLQuadBatch::QuadInstance &rhs) const 
+    {
+        const vec4 lp = viewmatrix * lhs.modelmatrix * vec4(0,0,0,1);
+        const vec4 rp = viewmatrix * rhs.modelmatrix * vec4(0,0,0,1);
+        return lp.z < rp.z;
+    }
+};
+struct IndexDepthComparer {
+    const vector<GLQuadBatch::QuadInstance> &instances;
+    mat4 viewmatrix;
+    IndexDepthComparer(
+        const vector<GLQuadBatch::QuadInstance> &instances, 
+        mat4 viewmatrix
+    ) : instances(instances), viewmatrix(viewmatrix) {}
+    bool operator()(size_t i1, size_t i2) const 
+    {
+        return DepthComparer(viewmatrix)(instances[i1], instances[i2]);
+    }
+};
+
+void GLQuadBatch::sortInstancesByDepth(const mat4 &viewmatrix) {
+    std::stable_sort(instances.begin(), instances.end(), 
+        DepthComparer(viewmatrix)
+    );
+}
+
+vector<size_t> GLQuadBatch::sortInstancesByDepthKeepingIndices(const mat4 &viewmatrix) {
+
+    vector<size_t> idx(instances.size());
+    std::iota(idx.begin(), idx.end(), 0);
+    std::stable_sort(idx.begin(), idx.end(),
+        IndexDepthComparer(instances, viewmatrix)
+    );
+    sortInstancesByDepth(viewmatrix);
+    return idx;
+}
 
 void GLQuadBatch::updateInstancesVBO() const {
     glBindBuffer(GL_ARRAY_BUFFER, vbo);

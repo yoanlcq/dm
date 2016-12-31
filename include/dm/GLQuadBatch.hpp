@@ -30,6 +30,8 @@ struct GLQuadBatch {
     GLQuadBatch();
     ~GLQuadBatch();
 
+    void sortInstancesByDepth(const glm::mat4 &viewmatrix);
+    std::vector<size_t> sortInstancesByDepthKeepingIndices(const glm::mat4 &viewmatrix);
     void updateInstancesVBO() const;
     void renderGL(const PerspectiveView &view) const;
     void renderGL_HUD(const OrthographicView &view) const;

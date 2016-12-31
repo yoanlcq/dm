@@ -97,10 +97,10 @@ void TileSet::recomputeInfo() {
         if(tile == Tile::START) {
             spawn_pos = ivec2(x,y);
 
-            if(x+1 <  w) if(getTileAt(x+1, y) != Tile::WALL) { spawn_direction_angle = (0.f); }
-            if(x   >  0) if(getTileAt(x-1, y) != Tile::WALL) { spawn_direction_angle = (float(M_PI)); }
-            if(y+1 <  h) if(getTileAt(x, y+1) != Tile::WALL) { spawn_direction_angle = (3.f*float(M_PI)/2.f); }
-            if(y   >  0) if(getTileAt(x, y-1) != Tile::WALL) { spawn_direction_angle = (M_PI/2.f); }
+            if(x+1 <  w) if(getTileAt(x+1, y) != Tile::WALL) spawn_angle_y = 0;
+            if(x   >  0) if(getTileAt(x-1, y) != Tile::WALL) spawn_angle_y = M_PI;
+            if(y+1 <  h) if(getTileAt(x, y+1) != Tile::WALL) spawn_angle_y = 3*M_PI/2;
+            if(y   >  0) if(getTileAt(x, y-1) != Tile::WALL) spawn_angle_y = M_PI/2;
 
             return;
         }
@@ -109,27 +109,6 @@ void TileSet::recomputeInfo() {
 
 Tile TileSet::getTileAt(size_t x, size_t y) const {
     return rgb24ToTile((*this)[y][x]);
-}
-
-void TileSet::fillWallQuadBatch(GLQuadBatch &walls) const {
-    for(size_t y=0 ; y<h ; ++y) for(size_t x=0 ; x<w ; ++x) {
-        Tile tile = getTileAt(x,y);
-        if(tile != Tile::WALL)
-            continue;
-        GLQuadBatch::QuadInstance quad;
-        ivec2 qpos = ivec2(x,y)-spawn_pos;
-#define ADD_WALL_QUAD(quad_angle_y) \
-        quad.modelmatrix = translate(mat4(), vec3(qpos.x,0,qpos.y)) \
-                         * rotate(quad_angle_y-float(M_PI)/2.f, vec3(0,1,0)) \
-                         * translate(mat4(), vec3(0,0,-.5f)); \
-        walls.instances.push_back(quad);
-
-        if(x+1 <  w) if(getTileAt(x+1, y) != Tile::WALL) { ADD_WALL_QUAD(0.f); }
-        if(x   >  0) if(getTileAt(x-1, y) != Tile::WALL) { ADD_WALL_QUAD(float(M_PI)); }
-        if(y+1 <  h) if(getTileAt(x, y+1) != Tile::WALL) { ADD_WALL_QUAD(3.f*float(M_PI)/2.f); }
-        if(y   >  0) if(getTileAt(x, y-1) != Tile::WALL) { ADD_WALL_QUAD(float(M_PI)/2.f); }
-#undef ADD_WALL_QUAD
-    }
 }
 
 bool TileSet::isTileCage(Tile tile) {
@@ -222,6 +201,102 @@ void Dungeon::reshape(ivec2 new_viewport_size) {
     view.reshape(new_viewport_size);
 }
 
+
+void TileObject::face(const TileObject &other) {
+    // Kinda hard to choose betwwen the two.
+#if 1 
+    vec3 facing_vec = position.getCurrent() - other.position.getCurrent();
+    angle_y = atan2f(-facing_vec.z, facing_vec.x);
+#else
+    angle_y = other.angle_y + M_PI;
+#endif
+}
+
+mat4 TileObject::getModelMatrix() const {
+    return translate(mat4(), position.getCurrent())
+         * rotate(angle_y-float(M_PI)/2.f, vec3(0,1,0));
+}
+
+void Dungeon::fillFloorDataFromTileSet() {
+
+    enemies.clear();
+    friends.clear();
+    keys.clear();
+    cages.clear();
+
+    for(size_t y=0 ; y<tiles.h ; ++y) for(size_t x=0 ; x<tiles.w ; ++x) {
+
+        Tile tile = tiles.getTileAt(x,y);
+        
+        GLQuadBatch::QuadInstance quad;
+
+#define ADD_TRANS_QUAD(objvec) { \
+             (objvec).push_back({}); \
+            ((objvec).end()-1)->quad_index = trans_quad_batch.instances.size(); \
+            ((objvec).end()-1)->position = vec3(x, 0, y); \
+            ((objvec).end()-1)->face(hero); \
+            quad.modelmatrix = ((objvec).end()-1)->getModelMatrix(); \
+            trans_quad_batch.instances.push_back(quad); \
+        }
+#define ADD_WALL_QUAD(qbatch, quad_angle_y) { \
+            quad.modelmatrix = translate(mat4(), vec3(x,0,y)) \
+                             * rotate(float(quad_angle_y)-float(M_PI)/2.f, vec3(0,1,0)) \
+                             * translate(mat4(), vec3(0,0,-.5f)); \
+            (qbatch).instances.push_back(quad); \
+        }
+#define ADD_WALL_QUADS(qbatch) { \
+            if(x+1 < tiles.w) if(tiles.getTileAt(x+1, y) != Tile::WALL) ADD_WALL_QUAD((qbatch), 0.f); \
+            if(x > 0)         if(tiles.getTileAt(x-1, y) != Tile::WALL) ADD_WALL_QUAD((qbatch), M_PI); \
+            if(y+1 < tiles.h) if(tiles.getTileAt(x, y+1) != Tile::WALL) ADD_WALL_QUAD((qbatch), 3*M_PI/2); \
+            if(y > 0)         if(tiles.getTileAt(x, y-1) != Tile::WALL) ADD_WALL_QUAD((qbatch), M_PI/2); \
+        }
+#define ADD_DOOR_QUAD(qbatch, quad_angle_y) { \
+            quad.modelmatrix = translate(mat4(), vec3(x,0,y)) \
+                             * rotate(float(quad_angle_y)-float(M_PI)/2.f, vec3(0,1,0)) \
+                             * translate(mat4(), vec3(-.25f, 0, 0)) \
+                             * scale(vec3(.5f, 1, 1)); \
+            (qbatch).instances.push_back(quad); \
+            quad.modelmatrix = translate(mat4(), vec3(x,0,y)) \
+                             * rotate(float(quad_angle_y)-float(M_PI)/2.f, vec3(0,1,0)) \
+                             * translate(mat4(), vec3(+.25f, 0, 0)) \
+                             * scale(vec3(.5f, 1, 1)); \
+            (qbatch).instances.push_back(quad); \
+        }
+#define ADD_DOOR_QUADS(qbatch) { \
+             if(x+1 < tiles.w && tiles.getTileAt(x+1, y) != Tile::WALL) { ADD_DOOR_QUAD((qbatch), 0.f); } \
+        else if(x > 0         && tiles.getTileAt(x-1, y) != Tile::WALL) { ADD_DOOR_QUAD((qbatch), M_PI); } \
+        else if(y+1 < tiles.h && tiles.getTileAt(x, y+1) != Tile::WALL) { ADD_DOOR_QUAD((qbatch), 3*M_PI/2); } \
+        else if(y > 0         && tiles.getTileAt(x, y-1) != Tile::WALL) { ADD_DOOR_QUAD((qbatch), M_PI/2); } \
+        }
+
+        if(TileSet::isTileEnemy(tile)) {
+            ADD_TRANS_QUAD(enemies);
+        } else if(TileSet::isTileFriend(tile)) {
+            ADD_TRANS_QUAD(friends);
+        } else if(TileSet::isTileKey(tile)) {
+            ADD_TRANS_QUAD(keys);
+        } else if(TileSet::isTileCage(tile)) {
+            ADD_WALL_QUADS(trans_quad_batch);
+            continue;
+        }
+        switch(tile) {
+        // Default to shut up GCC's -Wswitch warning.
+        default: break;
+        case Tile::WALL: ADD_WALL_QUADS(walls_quad_batch); break;
+        case Tile::EXIT: ADD_WALL_QUADS(trans_quad_batch); break;
+        case Tile::DOOR: ADD_DOOR_QUADS(doors_quad_batch); break;
+        }
+#undef ADD_WALL_QUAD
+#undef ADD_WALL_QUADS
+#undef ADD_DOOR_QUAD
+#undef ADD_DOOR_QUADS
+    }
+    walls_quad_batch.updateInstancesVBO();
+    doors_quad_batch.updateInstancesVBO();
+    trans_quad_batch.updateInstancesVBO();
+}
+
+
 void Dungeon::prepare(size_t i) {
     // Load dungeon at index i...
     switch(i) {
@@ -244,13 +319,15 @@ void Dungeon::prepare(size_t i) {
         should_render_ceiling = (i==4);
         break;
     }
+    doors_quad_batch.texture_unit = TextureUnit::WORLD_MAP;
+    trans_quad_batch.texture_unit = TextureUnit::MONOSPACE_FONT_ATLAS;
 
     mat4 rx = rotate(float(M_PI)/2.f, vec3(1,0,0));
     vec2 max_dim(1000, 1000);
 
     ground_quad_batch.instances.resize(1);
     ground_quad_batch.instances[0].modelmatrix 
-        = translate(mat4(), vec3(.5,-.5,.5))
+        = translate(mat4(), vec3(-.5f+max_dim.x/2, -.5, -.5f+max_dim.y/2))
         * rx
         * scale(vec3(max_dim.x, max_dim.y, 1));
     ground_quad_batch.instances[0].sprite_size = max_dim;
@@ -258,7 +335,7 @@ void Dungeon::prepare(size_t i) {
 
     ceiling_quad_batch.instances.resize(1);
     ceiling_quad_batch.instances[0].modelmatrix 
-        = translate(mat4(), vec3(.5,.5,.5))
+        = translate(mat4(), vec3(-.5f+max_dim.x/2, .5, -.5f+max_dim.y/2))
         * rx
         * scale(vec3(max_dim.x, max_dim.y, 1));
     ceiling_quad_batch.instances[0].sprite_size = max_dim;
@@ -276,10 +353,10 @@ void Dungeon::prepare(size_t i) {
     
     hope(tiles.loadFromFile("res/missingno_e" + to_string(floor_index) + ".ppm"));
     tiles.recomputeInfo();
-    hero.angle_y = tiles.spawn_direction_angle;
+    hero.position.prev = vec3(tiles.spawn_pos.x, 0, tiles.spawn_pos.y);
+    hero.angle_y = tiles.spawn_angle_y;
     
-    tiles.fillWallQuadBatch(walls_quad_batch);
-    walls_quad_batch.updateInstancesVBO();
+    fillFloorDataFromTileSet();
 
     vec3 fogcol = (i<2 ? sky : vec3(0,0,0));
     float fogdist = (i<2 ? 64 : 16);
@@ -292,6 +369,14 @@ void Dungeon::prepare(size_t i) {
     ceiling_quad_batch.fog_factor = .8;
     ceiling_quad_batch.fogdistance = fogdist;
     ceiling_quad_batch.fogcolor = fogcol;
+    doors_quad_batch.fog_factor = .8;
+    doors_quad_batch.fogdistance = fogdist;
+    doors_quad_batch.fogcolor = fogcol;
+    trans_quad_batch.fog_factor = .8;
+    trans_quad_batch.fogdistance = fogdist;
+    trans_quad_batch.fogcolor = fogcol;
+
+    trans_quad_batch.sortInstancesByDepth(view.getViewMatrix());
 }
 
 static float angleClosestQuarter(float angle) {
@@ -300,6 +385,8 @@ static float angleClosestQuarter(float angle) {
 
 GameplayType Dungeon::nextFrame(const Input &input, uint32_t fps) {
 
+    if(input.escape)
+        return GameplayType::WORLD_MAP;
 
     if(!hero.angle_y.progress)
         hero.angle_y.next = hero.angle_y.prev + input.turnaround*M_PI/2.f;
@@ -325,15 +412,12 @@ GameplayType Dungeon::nextFrame(const Input &input, uint32_t fps) {
                  * vec3(axis.x, axis.y, 0);
 
         vec3 next_pos = hero.position.prev + vec3(mov.x, 0, -mov.y);
-        ivec2 next_tile_xy = ivec2(
-             next_pos.x + tiles.spawn_pos.x,
-             next_pos.z + tiles.spawn_pos.y
-        );
-        if(TileSet::isTileWalkable(tiles.getTileAt(next_tile_xy.x, next_tile_xy.y)))
+        if(TileSet::isTileWalkable(tiles.getTileAt(next_pos.x, next_pos.z)))
             hero.position.next = next_pos;
     }
-    if(axis.x || axis.y || hero.position.progress)
+    if(axis.x || axis.y || hero.position.progress) {
         hero.position.progress += hero.speed/float(fps);
+    }
     if(hero.position.progress >= 1) {
         hero.position.reset(hero.position.next);
         // Correct the position every time, because errors accumulate
@@ -342,19 +426,36 @@ GameplayType Dungeon::nextFrame(const Input &input, uint32_t fps) {
         hero.position.prev.z = roundf(hero.position.prev.z);
     }
 
+
+    if(hero.position.progress || hero.angle_y.progress) {
+        auto qidx = trans_quad_batch.sortInstancesByDepthKeepingIndices(view.getViewMatrix());
+
+#define FACE_HERO(objvec) \
+        for(auto& obj : (objvec)) { \
+            obj.quad_index = std::find(qidx.begin(), qidx.end(), obj.quad_index) - qidx.begin();\
+            obj.face(hero); \
+            trans_quad_batch.instances[obj.quad_index].modelmatrix = obj.getModelMatrix(); \
+        }
+        FACE_HERO(enemies);
+        FACE_HERO(friends);
+        FACE_HERO(keys);
+#undef FACE_HERO
+        trans_quad_batch.updateInstancesVBO();
+    }
+
     view.position = hero.position;
     view.angle_y  = hero.angle_y;
 
-    if(input.escape)
-        return GameplayType::WORLD_MAP;
     return GameplayType::DUNGEON;
 }
 
 void Dungeon::renderGL() const {
     walls_quad_batch.renderGL(view);
+    doors_quad_batch.renderGL(view);
     ground_quad_batch.renderGL(view);
     if(should_render_ceiling)
         ceiling_quad_batch.renderGL(view);
+    trans_quad_batch.renderGL(view);
 }
 
 } // namespace dm
