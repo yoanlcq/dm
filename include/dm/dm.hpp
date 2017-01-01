@@ -8,6 +8,7 @@
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
+#include <SDL2/SDL_mixer.h>
 
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>

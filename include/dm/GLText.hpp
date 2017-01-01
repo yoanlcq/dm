@@ -16,6 +16,7 @@ struct GLText {
     ~GLText();
 
     float getLineWidth(size_t i) const;
+    float getStringWidth(const std::string &str) const;
     void updateQuadBatch();
     void renderGL_HUD(const OrthographicView &view) const;
 

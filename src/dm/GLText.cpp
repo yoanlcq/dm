@@ -48,6 +48,10 @@ static const float CHAR_RATIO = CHAR_SZ.x/CHAR_SZ.y;
 float GLText::getLineWidth(size_t i) const {
     return lines[i].length()*CHAR_RATIO*line_height;
 }
+float GLText::getStringWidth(const string &s) const {
+    return s.length()*CHAR_RATIO*line_height;
+}
+
 
 void GLText::updateQuadBatch() {
     quad_batch.instances.clear();

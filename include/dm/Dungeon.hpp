@@ -54,10 +54,14 @@ struct TileSet : public PPMImage {
     static bool isTileEnemy(Tile tile);
     static bool isTileFriend(Tile tile);
     static bool isTileWalkable(Tile tile);
+    static Tile cageToKey(Tile tile);
     bool isValid() const;
     void recomputeInfo();
     static Tile rgb24ToTile(rgb24 rgb);
+    static rgb24 tileToRgb24(Tile tile);
     Tile getTileAt(size_t x, size_t y) const;
+    void setTileAt(size_t x, size_t y, Tile tile);
+    void swapTilesAt(size_t x1, size_t y1, size_t x2, size_t y2);
 };
 
 
@@ -68,13 +72,21 @@ typedef signed int LifeValue;
 struct TileObject {
     Lerp<glm::vec3> position;
     Lerp<float>     angle_y; // in radians
+    bool            was_tile_swapped;
+    float           feel_radius; // Hack, for enemies only
+    TileObject();
     void face(const TileObject &other);
     glm::mat4 getModelMatrix() const;
+    glm::ivec2 decideMoveTowards(const TileObject &target, const TileSet &tiles, const std::vector<glm::ivec2> &taken) const;
 };
 
 struct QuadEntity {
     size_t quad_index;
 };
+struct MultiQuadEntity {
+    std::vector<size_t> quad_indices;
+};
+
 
 
 struct Character {
@@ -110,11 +122,8 @@ struct Fighter : public Character {
 };
 
 
-// A key type, and the number of those keys.
-typedef std::map<Tile, size_t> Keyring;
-
 struct Hero : public Fighter, public TileObject {
-    Keyring keyring;
+    std::vector<Tile> keys;
     Attack close_range_attack;
     Attack long_range_attack;
     bool is_long_range_attack_unlocked;
@@ -132,8 +141,30 @@ struct Enemy4 : public Enemy { /*Enemy4(); ~Enemy4(); */};
 struct Enemy5 : public Enemy { /*Enemy5(); ~Enemy5(); */};
 
 struct Key  : public QuadEntity, public TileObject {};
-struct Cage : public QuadEntity, public TileObject {};
+struct Cage : public MultiQuadEntity {
+    Lerp<glm::vec3> position;
+    std::vector<float> quad_angles_y;
+    glm::mat4 getQuadModelMatrix(size_t i);
+};
 struct Door : public TileObject {};
+
+
+template<typename T>
+struct TileObjectVector : public std::vector<T> {
+    size_t findIndexByTilePos(size_t x, size_t y) {
+        size_t i = 0;
+        for(auto& obj : *this) {
+            if(roundf(obj.position.getCurrent().x)==x
+            && roundf(obj.position.getCurrent().z)==y)
+                return i;
+            ++i;
+        }
+        return -1;
+    }
+    typename std::vector<T>::iterator findByTilePos(size_t x, size_t y) {
+        return this->begin() + findIndexByTilePos(x, y);
+    }
+};
 
 
 struct Dungeon {
@@ -150,15 +181,17 @@ struct Dungeon {
     size_t               floor_index;
     Hero                 hero;
     TileSet              tiles;
-    std::vector<Enemy>   enemies;
-    std::vector<Friend>  friends;
-    std::vector<Key>     keys;
-    std::vector<Cage>    cages;
-    std::vector<Door>    doors;
+    TileObjectVector<Enemy>   enemies;
+    TileObjectVector<Friend>  friends;
+    TileObjectVector<Key>     keys;
+    TileObjectVector<Cage>    cages;
+    TileObjectVector<Door>    doors;
 
 
     GLText               dialogue;
     GLQuadBatch          dialogue_box_quad_batch;
+    GLQuadBatch          hud_keys_quad_batch;
+    GLQuadBatch          hud_life_quad_batch;
 
     // TODO cages, doors, billboards, stairs
     // TODO water ?
@@ -186,6 +219,7 @@ private:
     static GLuint tex_mansion_ground;
     static GLuint tex_mansion_wall  ;
     void fillFloorDataFromTileSet();
+    void sortTransQuadsAndObjects();
 };
 
 

@@ -10,6 +10,11 @@ Tile TileSet::rgb24ToTile(rgb24 col) {
     uint32_t tile = (col.r<<16) | (col.g<<8) | col.b;
     return (Tile)tile;
 }
+rgb24 TileSet::tileToRgb24(Tile tile) {
+    uint32_t col = (uint32_t)tile;
+    return rgb24((col>>16)&0xff, (col>>8)&0xff, col&0xff);
+}
+
 
 bool TileSet::isValid() const {
 #define HELPER(cst) \
@@ -110,6 +115,13 @@ void TileSet::recomputeInfo() {
 Tile TileSet::getTileAt(size_t x, size_t y) const {
     return rgb24ToTile((*this)[y][x]);
 }
+void TileSet::setTileAt(size_t x, size_t y, Tile tile) {
+    (*this)[y][x] = tileToRgb24(tile);
+}
+
+void TileSet::swapTilesAt(size_t x1, size_t y1, size_t x2, size_t y2) {
+    std::swap((*this)[y1][x1], (*this)[y2][x2]);
+}
 
 bool TileSet::isTileCage(Tile tile) {
     return tile == Tile::CAGE0
@@ -149,7 +161,22 @@ bool TileSet::isTileWalkable(Tile tile) {
     return !(tile==Tile::WALL  || tile==Tile::DOOR
           || isTileCage(tile)  || isTileEnemy(tile) || isTileFriend(tile));
 }
+Tile TileSet::cageToKey(Tile tile) {
+    assert(isTileCage(tile));
+    switch(tile) {
+    default:          return Tile::KEY0;
+    case Tile::CAGE0: return Tile::KEY0;
+    case Tile::CAGE1: return Tile::KEY1;
+    case Tile::CAGE2: return Tile::KEY2;
+    case Tile::CAGE3: return Tile::KEY3;
+    case Tile::CAGE4: return Tile::KEY4;
+    case Tile::CAGE5: return Tile::KEY5;
+    };
+}
 
+
+TileObject::TileObject() 
+    : position(vec3(0,0,0)), angle_y(float(M_PI)/2), was_tile_swapped(false) {}
 
 size_t Dungeon::refcount(0);
 GLuint Dungeon::tex_grass_ground  (0);
@@ -194,6 +221,8 @@ Dungeon:: Dungeon(ivec2 viewport_size)
     if(!refcount)
         setupGL();
     ++refcount;
+
+    hud_life_quad_batch.instances.resize(2);
 }
 Dungeon::~Dungeon() {
     --refcount;
@@ -207,18 +236,49 @@ void Dungeon::reshape(ivec2 new_viewport_size) {
     view.reshape(new_viewport_size);
     hud_view.reshape(new_viewport_size);
 
+    const float dialogue_line_w = dialogue.getStringWidth("Oh no! the princess was kidnapped!");
     dialogue.position = vec3(
-        -dialogue.getLineWidth(0)/2.f,
+        -dialogue_line_w/2.f,
         -hud_view.getHalfHeight() + 2.f*dialogue.line_height,
         0
     );
     dialogue.updateQuadBatch();
 
-    dialogue_box_quad_batch.instances[0].modelmatrix 
-        = translate(mat4(), vec3(0, 2.f*dialogue.line_height-hud_view.getHalfHeight(), 0))
-        * scale(vec3(1.1f, 1.8f, 1))
-        * scale(vec3(dialogue.getLineWidth(0), 2.f*dialogue.line_height, 1));
-    dialogue_box_quad_batch.updateInstancesVBO();
+    if(dialogue_box_quad_batch.instances.size()) {
+        dialogue_box_quad_batch.instances[0].modelmatrix 
+            = translate(mat4(), vec3(0, 2.f*dialogue.line_height-hud_view.getHalfHeight(), 0))
+            * scale(vec3(1.1f, 1.8f, 1))
+            * scale(vec3(dialogue_line_w, 2.f*dialogue.line_height, 1));
+        dialogue_box_quad_batch.updateInstancesVBO();
+    }
+
+    hud_keys_quad_batch.instances.clear();
+    hud_keys_quad_batch.texture_unit = TextureUnit::WORLD_MAP;
+    for(size_t i=0 ; i<hero.keys.size() ; ++i) {
+        const float size = .14f;
+        GLQuadBatch::QuadInstance quad;
+        quad.modelmatrix = translate(mat4(), vec3(hud_view.half_width-size/2-size*i, hud_view.getHalfHeight()-size/2, 0))
+                         * scale(vec3(size, size, 1));
+        hud_keys_quad_batch.instances.push_back(quad);
+    }
+    hud_keys_quad_batch.updateInstancesVBO();
+
+    assert(hud_life_quad_batch.instances.size()==2);
+    const float lifebar_1_w = .004f;
+    const float lifebar_w = hero.life_max * lifebar_1_w;
+    const float lifebar_h = .14f;
+
+    // Too lazy to refactor these two
+    hud_life_quad_batch.instances[0].modelmatrix
+        = translate(mat4(), vec3(-hud_view.half_width+lifebar_w/2+.05f, hud_view.getHalfHeight()-lifebar_h/2-.025f, 0))
+        * scale(vec3(lifebar_1_w*hero.life_max, lifebar_h, 1));
+
+    hud_life_quad_batch.instances[1].modelmatrix
+        = translate(mat4(), vec3(-hud_view.half_width+lifebar_1_w*hero.life/2+.05f, hud_view.getHalfHeight()-lifebar_h/2-.025f, 0))
+        * scale(vec3(lifebar_1_w*hero.life, lifebar_h, 1));
+    
+    hud_life_quad_batch.texture_unit = TextureUnit::WORLD_MAP;
+    hud_life_quad_batch.updateInstancesVBO();
 }
 
 
@@ -236,6 +296,15 @@ mat4 TileObject::getModelMatrix() const {
     return translate(mat4(), position.getCurrent())
          * rotate(angle_y-float(M_PI)/2.f, vec3(0,1,0));
 }
+
+
+mat4 Cage::getQuadModelMatrix(size_t i) {
+    return translate(mat4(), position.getCurrent())
+         * rotate(quad_angles_y[i]-float(M_PI)/2.f, vec3(0,1,0))
+         * translate(mat4(), vec3(0,0,-.45f))
+         * scale(vec3(.90f, 1, 1));
+}
+
 
 void Dungeon::fillFloorDataFromTileSet() {
 
@@ -264,11 +333,28 @@ void Dungeon::fillFloorDataFromTileSet() {
                              * translate(mat4(), vec3(0,0,-.5f)); \
             (qbatch).instances.push_back(quad); \
         }
+#define ADD_CAGE_QUAD(qbatch, quad_angle_y) { \
+            (cages.end()-1)->quad_indices.push_back((qbatch).instances.size()); \
+            (cages.end()-1)->quad_angles_y.push_back(quad_angle_y); \
+            (cages.end()-1)->position = vec3(x, 0, y); \
+            quad.modelmatrix = (cages.end()-1)->getQuadModelMatrix((cages.end()-1)->quad_angles_y.size()-1); \
+            (qbatch).instances.push_back(quad); \
+        }
 #define ADD_WALL_QUADS(qbatch) { \
             if(x+1 < tiles.w) if(tiles.getTileAt(x+1, y) != Tile::WALL) ADD_WALL_QUAD((qbatch), 0.f); \
             if(x > 0)         if(tiles.getTileAt(x-1, y) != Tile::WALL) ADD_WALL_QUAD((qbatch), M_PI); \
             if(y+1 < tiles.h) if(tiles.getTileAt(x, y+1) != Tile::WALL) ADD_WALL_QUAD((qbatch), 3*M_PI/2); \
             if(y > 0)         if(tiles.getTileAt(x, y-1) != Tile::WALL) ADD_WALL_QUAD((qbatch), M_PI/2); \
+        }
+#define ADD_CAGE_QUADS(qbatch) { \
+            bool should_pop = true; \
+            cages.push_back({}); \
+            if(x+1 < tiles.w) if(tiles.getTileAt(x+1, y) != Tile::WALL) { should_pop=false; ADD_CAGE_QUAD((qbatch), 0.f); } \
+            if(x > 0)         if(tiles.getTileAt(x-1, y) != Tile::WALL) { should_pop=false; ADD_CAGE_QUAD((qbatch), M_PI); } \
+            if(y+1 < tiles.h) if(tiles.getTileAt(x, y+1) != Tile::WALL) { should_pop=false; ADD_CAGE_QUAD((qbatch), 3*M_PI/2); } \
+            if(y > 0)         if(tiles.getTileAt(x, y-1) != Tile::WALL) { should_pop=false; ADD_CAGE_QUAD((qbatch), M_PI/2); } \
+            if(should_pop) \
+                cages.erase(cages.end()-1);    \
         }
 #define ADD_DOOR_QUAD(qbatch, quad_angle_y) { \
             quad.modelmatrix = translate(mat4(), vec3(x,0,y)) \
@@ -291,12 +377,14 @@ void Dungeon::fillFloorDataFromTileSet() {
 
         if(TileSet::isTileEnemy(tile)) {
             ADD_TRANS_QUAD(enemies);
+            (enemies.end()-1)->speed = 1;
+            (enemies.end()-1)->feel_radius = 8;
         } else if(TileSet::isTileFriend(tile)) {
             ADD_TRANS_QUAD(friends);
         } else if(TileSet::isTileKey(tile)) {
             ADD_TRANS_QUAD(keys);
         } else if(TileSet::isTileCage(tile)) {
-            ADD_WALL_QUADS(trans_quad_batch);
+            ADD_CAGE_QUADS(trans_quad_batch);
             continue;
         }
         switch(tile) {
@@ -374,14 +462,17 @@ void Dungeon::prepare(size_t i) {
     else
         glClearColor(0, 0, .04, 1);
 
-    hero.speed = 3.2f;
-    hero.angular_speed = 2.4f;
     floor_index = 0;
     
     hope(tiles.loadFromFile("res/missingno_e" + to_string(floor_index) + ".ppm"));
     tiles.recomputeInfo();
     hero.position.reset(vec3(tiles.spawn_pos.x, 0, tiles.spawn_pos.y));
     hero.angle_y.reset(tiles.spawn_angle_y);
+    hero.speed = 3.2f;
+    hero.angular_speed = 2.4f;
+    hero.life_max = 100;
+    hero.life = hero.life_max/3.f;
+    hero.keys.clear();
     
     fillFloorDataFromTileSet();
 
@@ -403,10 +494,15 @@ void Dungeon::prepare(size_t i) {
     trans_quad_batch.fogdistance = fogdist;
     trans_quad_batch.fogcolor = fogcol;
 
-    trans_quad_batch.sortInstancesByDepth(view.getViewMatrix());
 
-    dialogue.lines.push_back("Oh no! The princess was kidnapped!");
-    dialogue.lines.push_back("Please save her!");
+    view.position = hero.position;
+    view.angle_y  = hero.angle_y;
+    sortTransQuadsAndObjects();
+    trans_quad_batch.updateInstancesVBO();
+
+
+    dialogue.lines.push_back("Heya!");
+    dialogue.lines.push_back("How's it going?");
     dialogue.line_height = .064f;
     dialogue.rgba = vec4(1,1,1,1);
     dialogue_box_quad_batch.instances.resize(1);
@@ -417,14 +513,186 @@ void Dungeon::prepare(size_t i) {
     reshape(hud_view.viewport_size);
 }
 
+
+
+void Dungeon::sortTransQuadsAndObjects() {
+    auto qidx = trans_quad_batch.sortInstancesByDepthKeepingIndices(view.getViewMatrix());
+
+#define FACE_HERO(objvec) \
+    for(auto& obj : (objvec)) { \
+        auto it = std::find(qidx.begin(), qidx.end(), obj.quad_index); \
+        assert(it != qidx.end()); \
+        obj.quad_index = it - qidx.begin();\
+        obj.face(hero); \
+        trans_quad_batch.instances[obj.quad_index].modelmatrix = obj.getModelMatrix(); \
+    }
+    FACE_HERO(enemies);
+    FACE_HERO(friends);
+    FACE_HERO(keys);
+#undef FACE_HERO
+    for(auto& cage : cages) {
+        size_t i = 0;
+        for(size_t &qindex : cage.quad_indices) {
+            auto it = std::find(qidx.begin(), qidx.end(), qindex);
+            assert(it != qidx.end());
+            qindex = it - qidx.begin();
+            trans_quad_batch.instances[qindex].modelmatrix = cage.getQuadModelMatrix(i);
+            ++i;
+        }
+    }
+}
+
+
 static float angleClosestQuarter(float angle) {
     return 2.f*M_PI*roundf(angle/(M_PI/2.f))/4.f;
 }
+
+
+// 'taken' receives the planned positions of other AIs and the player, so we know we can't move
+// to these.
+ivec2 TileObject::decideMoveTowards(const TileObject &target, const TileSet &tiles, const vector<ivec2> &taken) const {
+    int my_x = roundf(position.prev.x);
+    int my_y = roundf(position.prev.z);
+    int tg_x = roundf(target.position.prev.x);
+    int tg_y = roundf(target.position.prev.z);
+    Tile tile;
+    ivec2 dir(0,0);
+
+    // So much duplicated statements, but anyway.
+    // Do we see the target in our row ?
+    if(my_y == tg_y) {
+        if(my_x < tg_x-1) {
+            dir.x = 1;
+            for(int x=my_x+1 ; x<my_x ; ++x) {
+                tile = tiles.getTileAt(x, my_y);
+                if(!TileSet::isTileWalkable(tile)) {
+                    dir.x = 0;
+                    break;
+                }
+            }
+        } else if(my_x > tg_x+1) {
+            dir.x = -1;
+            for(int x=my_x-1 ; x>my_x ; --x) {
+                tile = tiles.getTileAt(x, my_y);
+                if(!TileSet::isTileWalkable(tile)) {
+                    dir.x = 0;
+                    break;
+                }
+            }
+        }
+    } else if(my_x == tg_x) {
+        if(my_y < tg_y-1) {
+            dir.y = 1;
+            for(int y=my_y+1 ; y<my_y ; ++y) {
+                tile = tiles.getTileAt(my_x, y);
+                if(!TileSet::isTileWalkable(tile)) {
+                    dir.y = 0;
+                    break;
+                }
+            }
+        } else if(my_y > tg_y+1) {
+            dir.y = -1;
+            for(int y=my_y-1 ; y>my_y ; --y) {
+                tile = tiles.getTileAt(my_x, y);
+                if(!TileSet::isTileWalkable(tile)) {
+                    dir.y = 0;
+                    break;
+                }
+            }
+        }
+    }
+
+    if(dir != ivec2(0,0)) {
+        ivec2 tilepos(my_x + dir.x, my_y + dir.y);
+        tile = tiles.getTileAt(tilepos.x, tilepos.y);
+        bool is_taken = std::find(taken.begin(), taken.end(), tilepos) != taken.end();
+        return !is_taken && TileSet::isTileWalkable(tile) ? dir : ivec2(0,0);
+    }
+
+    // Otherwise, do we "feel" the target nearby ?
+    vec2 diff = vec2(tg_x, tg_y) - vec2(my_x, my_y);
+    if(length(diff) > feel_radius || length(diff) <= 1.1f)
+        return ivec2(0,0);
+
+    ivec2 mypos(my_x, my_y);
+    // Pull two candidates ivec2.
+    ivec2 hdir(diff.x>0 ? 1 : -1, 0);
+    ivec2 vdir(0, diff.y>0 ? 1 : -1);
+    bool is_h_taken = std::find(taken.begin(), taken.end(), mypos+hdir) != taken.end();
+    bool is_v_taken = std::find(taken.begin(), taken.end(), mypos+vdir) != taken.end();
+    bool can_move_horizontally = false;
+    bool can_move_vertically   = false;
+    if(!is_h_taken && TileSet::isTileWalkable(tiles.getTileAt(my_x + hdir.x, my_y)))
+        can_move_horizontally = true;
+    if(!is_v_taken && TileSet::isTileWalkable(tiles.getTileAt(my_x, my_y + vdir.y)))
+        can_move_vertically = true;
+
+    if(abs(diff.x) > abs(diff.y)) {
+        if(can_move_horizontally)
+            return hdir;
+        if(can_move_vertically)
+            return vdir;
+    } else {
+        if(can_move_vertically)
+            return vdir;
+        if(can_move_horizontally)
+            return hdir;
+    }
+    return ivec2(0,0);
+}
+
+
 
 GameplayType Dungeon::nextFrame(const Input &input, uint32_t fps) {
 
     if(input.escape)
         return GameplayType::WORLD_MAP;
+
+
+    bool one_enemy_has_moved = false;
+    for(size_t i=0 ; i<enemies.size() ; ++i) {
+        Enemy &enemy = enemies[i];
+
+        if(!enemy.position.progress) {
+            vector<ivec2> taken;
+            taken.push_back(ivec2(roundf(hero.position.next.x), roundf(hero.position.next.z)));
+            for(size_t j=0 ; j<enemies.size() ; ++j) {
+                const Enemy &e = enemies[j];
+                if(i != j)
+                    taken.push_back(ivec2(roundf(e.position.next.x), roundf(e.position.next.z)));
+            }
+            vec2 axis = enemy.decideMoveTowards(hero, tiles, taken);
+            enemy.position.next = enemy.position.prev + vec3(axis.x,0,axis.y);
+        }
+        if(enemy.position.prev != enemy.position.next) {
+            enemy.position.progress += enemy.speed/float(fps);
+        }
+
+        if(enemy.position.progress > .5f && !enemy.was_tile_swapped) {
+            enemy.was_tile_swapped = true;
+            size_t x1 = enemy.position.prev.x;
+            size_t y1 = enemy.position.prev.z;
+            size_t x2 = enemy.position.next.x;
+            size_t y2 = enemy.position.next.z;
+            tiles.swapTilesAt(x1, y1, x2, y2);
+        }
+
+        if(enemy.position.progress >= 1) {
+            enemy.position.reset(enemy.position.next);
+            enemy.was_tile_swapped = false;
+            // Correct the position every time, because errors accumulate
+            enemy.position.prev.x = roundf(enemy.position.prev.x);
+            enemy.position.prev.y = roundf(enemy.position.prev.y);
+            enemy.position.prev.z = roundf(enemy.position.prev.z);
+        }
+
+        one_enemy_has_moved = true;
+    }
+    if(one_enemy_has_moved) {
+        sortTransQuadsAndObjects();
+        trans_quad_batch.updateInstancesVBO();
+    }
+
 
     if(!hero.angle_y.progress)
         hero.angle_y.next = hero.angle_y.prev + input.turnaround*M_PI/2.f;
@@ -442,6 +710,40 @@ GameplayType Dungeon::nextFrame(const Input &input, uint32_t fps) {
         axis.x = 0;
     }
 
+   
+    if(input.interact) {
+
+        vec3 direction = rotate(mat3(), hero.angle_y.getCurrent())
+                       * vec3(1, 0, 0);
+        direction.y = -direction.y;
+        std::swap(direction.y, direction.z);
+        vec3 forward_pos = hero.position.getCurrent() + direction;
+        Tile forward_tile = tiles.getTileAt(forward_pos.x, forward_pos.z);
+
+        if(TileSet::isTileCage(forward_tile)) {
+            size_t x2 = forward_pos.x;
+            size_t y2 = forward_pos.z;
+            auto key = std::find(hero.keys.begin(), hero.keys.end(), TileSet::cageToKey(forward_tile));
+            if(key != hero.keys.end()) {
+                auto cage = cages.findByTilePos(x2, y2);
+                cage->position.reset(vec3(-1000, -1000, -1000));
+                sortTransQuadsAndObjects();
+                trans_quad_batch.updateInstancesVBO();
+                cages.erase(cage);
+                hero.keys.erase(key);
+                reshape(hud_view.viewport_size);
+                tiles.setTileAt(x2, y2, Tile::GROUND);
+                dialogue.lines[0] = "Yay! Well done!";
+                dialogue.updateQuadBatch();
+            } else {
+                dialogue.lines[0] = "Nope! You need a key.";
+                dialogue.updateQuadBatch();
+            }
+        }
+    }
+
+
+
     if(!hero.position.progress) {
         float mov_angle = hero.angle_y.getCurrent();
         if(hero.angle_y.progress)
@@ -451,14 +753,49 @@ GameplayType Dungeon::nextFrame(const Input &input, uint32_t fps) {
                  * vec3(axis.x, axis.y, 0);
 
         vec3 next_pos = hero.position.prev + vec3(mov.x, 0, -mov.y);
-        if(TileSet::isTileWalkable(tiles.getTileAt(next_pos.x, next_pos.z)))
+        bool is_tile_taken = false;
+        for(Enemy &enemy : enemies) {
+            if(roundf(enemy.position.next.x) == roundf(next_pos.x)
+            && roundf(enemy.position.next.z) == roundf(next_pos.z)) {
+                is_tile_taken = true;
+                break;
+            }
+        }
+
+        Tile tile = tiles.getTileAt(next_pos.x, next_pos.z);
+        if(TileSet::isTileWalkable(tile) && !is_tile_taken)
             hero.position.next = next_pos;
     }
-    if(axis.x || axis.y || hero.position.progress) {
+    if(hero.position.prev != hero.position.next) {
         hero.position.progress += hero.speed/float(fps);
     }
+
+
+    if(hero.position.progress > .5f && !hero.was_tile_swapped) {
+        hero.was_tile_swapped = true;
+        size_t x1 = hero.position.prev.x;
+        size_t y1 = hero.position.prev.z;
+        size_t x2 = hero.position.next.x;
+        size_t y2 = hero.position.next.z;
+        Tile tile = tiles.getTileAt(x2, y2);
+        if(TileSet::isTileKey(tile)) {
+            auto key = keys.findByTilePos(x2, y2);
+            key->position.reset(vec3(-1000, -1000, -1000));
+            sortTransQuadsAndObjects();
+            trans_quad_batch.updateInstancesVBO();
+            keys.erase(key);
+
+            hero.keys.push_back(tile);
+            std::sort(hero.keys.begin(), hero.keys.end());
+            reshape(hud_view.viewport_size);
+            tiles.setTileAt(x2, y2, Tile::GROUND);
+        }
+        tiles.swapTilesAt(x1, y1, x2, y2);
+    }
+
     if(hero.position.progress >= 1) {
         hero.position.reset(hero.position.next);
+        hero.was_tile_swapped = false;
         // Correct the position every time, because errors accumulate
         hero.position.prev.x = roundf(hero.position.prev.x);
         hero.position.prev.y = roundf(hero.position.prev.y);
@@ -467,18 +804,7 @@ GameplayType Dungeon::nextFrame(const Input &input, uint32_t fps) {
 
 
     if(hero.position.progress || hero.angle_y.progress) {
-        auto qidx = trans_quad_batch.sortInstancesByDepthKeepingIndices(view.getViewMatrix());
-
-#define FACE_HERO(objvec) \
-        for(auto& obj : (objvec)) { \
-            obj.quad_index = std::find(qidx.begin(), qidx.end(), obj.quad_index) - qidx.begin();\
-            obj.face(hero); \
-            trans_quad_batch.instances[obj.quad_index].modelmatrix = obj.getModelMatrix(); \
-        }
-        FACE_HERO(enemies);
-        FACE_HERO(friends);
-        FACE_HERO(keys);
-#undef FACE_HERO
+        sortTransQuadsAndObjects();
         trans_quad_batch.updateInstancesVBO();
     }
 
@@ -496,6 +822,8 @@ void Dungeon::renderGL() const {
         ceiling_quad_batch.renderGL(view);
     trans_quad_batch.renderGL(view);
 
+    hud_keys_quad_batch.renderGL_HUD(hud_view);
+    hud_life_quad_batch.renderGL_HUD(hud_view);
     dialogue_box_quad_batch.renderGL_HUD(hud_view);
     dialogue.renderGL_HUD(hud_view);
 }

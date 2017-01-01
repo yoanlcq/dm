@@ -32,13 +32,13 @@ ofiles   := $(patsubst src/%.cpp,build/%.o,$(cppfiles))
 exe      := bin/dm$(dot_exe)
 
 ifeq ($(host_os),windows)
-ldlibs   := -lSDL2 -lSDL2_image -lopengl32
+ldlibs   := -lSDL2 -lSDL2_image -lSDL2_mixer -lopengl32
 endif
 ifeq ($(host_os),linux)
-ldlibs   := -lSDL2 -lSDL2_image -lGL
+ldlibs   := -lSDL2 -lSDL2_image -lSDL2_mixer -lGL
 endif
 ifeq ($(host_os),osx)
-ldlibs   := -framework SDL2 -framework SDL2_image -framework OpenGL
+ldlibs   := -framework SDL2 -framework SDL2_image -framework SDL2_mixer -framework OpenGL
 endif
 
 
