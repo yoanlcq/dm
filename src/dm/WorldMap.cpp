@@ -13,7 +13,7 @@ void WorldMap::setupGL() {
     hope(tex       = GLTexture_fromFile("res/world_map.png"));
     hope(fader_tex = GLTexture_fromRgba32(rgba32(0,0,0,255)));
     GLTexture_bindToUnit(tex,       TextureUnit::WORLD_MAP);
-    GLTexture_bindToUnit(fader_tex, TextureUnit::WORLD_MAP_FADER);
+    GLTexture_bindToUnit(fader_tex, TextureUnit::BLACK_FADER);
 }
 
 void WorldMap::cleanupGL() {
@@ -79,13 +79,13 @@ WorldMap:: WorldMap(ivec2 viewport_size)
         scale(vec3(9000,9000,1)), vec2(0,0), vec2(1,1)
     };
     fader_quad_batch.instances.push_back(fader_quad);
-    fader_quad_batch.texture_unit = TextureUnit::WORLD_MAP_FADER;
+    fader_quad_batch.texture_unit = TextureUnit::BLACK_FADER;
     fader_quad_batch.updateInstancesVBO();
     fader_quad_batch.rgba_fx = vec4(0,0,0,0);
 
-    node_text[0].lines.push_back("Forest of Happy");
+    node_text[0].lines.push_back("Small Bush");
     node_text[0].rgba = vec4(0,.3,.1,0);
-    node_text[1].lines.push_back("Glade of Happy");
+    node_text[1].lines.push_back("Sunny Glade");
     node_text[1].rgba = vec4(0,.3,.1,0);
     node_text[2].lines.push_back("The Great Mine");
     node_text[2].rgba = vec4(0,0,0,0);

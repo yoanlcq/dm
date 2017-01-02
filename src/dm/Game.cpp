@@ -224,7 +224,7 @@ void Game::nextFrame() {
     }
     if(gameplay == GameplayType::WORLD_MAP 
     && next_gameplay == GameplayType::DUNGEON) {
-        dungeon.prepare(world_map.current_node_index);
+        dungeon.launch(world_map.current_node_index);
     }
     
     raw_input.clearClicked();

@@ -55,6 +55,10 @@ struct TileSet : public PPMImage {
     static bool isTileFriend(Tile tile);
     static bool isTileWalkable(Tile tile);
     static Tile cageToKey(Tile tile);
+    static int  cageTileToIndex(Tile tile);
+    static int  keyTileToIndex(Tile tile);
+    static int  enemyTileToIndex(Tile tile);
+    static int  friendTileToIndex(Tile tile);
     bool isValid() const;
     void recomputeInfo();
     static Tile rgb24ToTile(rgb24 rgb);
@@ -72,6 +76,7 @@ typedef signed int LifeValue;
 struct TileObject {
     Lerp<glm::vec3> position;
     Lerp<float>     angle_y; // in radians
+    glm::vec3       m_scale;
     bool            was_tile_swapped;
     float           feel_radius; // Hack, for enemies only
     TileObject();
@@ -141,15 +146,8 @@ struct Hero : public Fighter, public TileObject {
 };
 
 struct Enemy : public Fighter, public QuadEntity, public TileObject {
-    // void detectHeroAndMove(const Hero &hero);
+    glm::vec2 idle_spr_pos, attack_spr_pos;
 };
-
-struct Enemy0 : public Enemy { /*Enemy0(); ~Enemy0(); */};
-struct Enemy1 : public Enemy { /*Enemy1(); ~Enemy1(); */};
-struct Enemy2 : public Enemy { /*Enemy2(); ~Enemy2(); */};
-struct Enemy3 : public Enemy { /*Enemy3(); ~Enemy3(); */};
-struct Enemy4 : public Enemy { /*Enemy4(); ~Enemy4(); */};
-struct Enemy5 : public Enemy { /*Enemy5(); ~Enemy5(); */};
 
 struct Key  : public QuadEntity, public TileObject {};
 struct Cage : public MultiQuadEntity {
@@ -157,7 +155,13 @@ struct Cage : public MultiQuadEntity {
     std::vector<float> quad_angles_y;
     glm::mat4 getQuadModelMatrix(size_t i);
 };
-struct Door : public TileObject {};
+struct Door : public TileObject {
+    size_t l_quad_index, r_quad_index; // Indices into the doors quad batch.
+    Lerp<float> opening_angle; // Either from 0 to 90° or 0 to -90°
+    glm::mat4 getLModelMatrix() const;
+    glm::mat4 getRModelMatrix() const;
+    static const float OPENING_SPEED;
+};
 
 
 template<typename T>
@@ -177,11 +181,20 @@ struct TileObjectVector : public std::vector<T> {
     }
 };
 
+enum class DungeonTransitionState {
+    NONE = 0,
+    FADING_IN,
+    FADING_IN_TEXT,
+    TEXT_SHOWN_PAUSING,
+    FADING_OUT,
+};
 
 struct Dungeon {
     PerspectiveView    view;
     OrthographicView   hud_view;
-    static Lerp<float> fade_transition;
+    Lerp<float>        fader_opacity;
+    Lerp<float>        fader_text_opacity;
+    float              fader_post_progress;
     GLQuadBatch        walls_quad_batch;
     GLQuadBatch        ground_quad_batch;
     GLQuadBatch        ceiling_quad_batch;
@@ -189,7 +202,9 @@ struct Dungeon {
     GLQuadBatch        trans_quad_batch; // enemies, friends, cages, keys, exit
     bool               should_render_ceiling;
 
+    size_t               dungeon_index;
     size_t               floor_index;
+    bool                 is_dungeon_completed;
     Hero                 hero;
     TileSet              tiles;
     TileObjectVector<Enemy>   enemies;
@@ -197,28 +212,31 @@ struct Dungeon {
     TileObjectVector<Key>     keys;
     TileObjectVector<Cage>    cages;
     TileObjectVector<Door>    doors;
+    DungeonTransitionState    transition_state;
 
 
     GLText               dialogue;
     GLQuadBatch          dialogue_box_quad_batch;
     GLQuadBatch          hud_keys_quad_batch;
     GLQuadBatch          hud_life_quad_batch;
+    GLQuadBatch          hud_fader_quad_batch;
+    GLText               fader_txt;
 
-    // TODO cages, doors, billboards, stairs
     // TODO water ?
-    // TODO HUD ? Map on HUD ?
+    // TODO Map on HUD ?
     // TODO Dialogues ?
 
 
      Dungeon(glm::ivec2 viewport_size);
     ~Dungeon();
 
-    void prepare(size_t i);
+    void launch(size_t p_dungeon_index);
     void reshape(glm::ivec2 new_viewport_size);
     GameplayType nextFrame(const Input &input, uint32_t fps);
     void renderGL() const;
 
 private:
+    void prepare(size_t p_dungeon_index, size_t p_floor_index=0);
     static size_t refcount;
     static void setupGL();
     static void cleanupGL();
@@ -229,6 +247,7 @@ private:
     static GLuint tex_cave_wall     ;
     static GLuint tex_mansion_ground;
     static GLuint tex_mansion_wall  ;
+    static GLuint tex_trans_atlas   ;
     void fillFloorDataFromTileSet();
     void sortTransQuadsAndObjects();
 };
