@@ -368,7 +368,7 @@ void Dungeon::reshape(ivec2 new_viewport_size) {
         GLQuadBatch::QuadInstance quad;
         quad.modelmatrix = translate(mat4(), vec3(hud_view.half_width-size/2-size*i, hud_view.getHalfHeight()-size/2, 0))
                          * scale(vec3(size, size, 1));
-        quad.sprite_pos  = vec2(512*TileSet::keyTileToIndex(hero.keys[i]), 4096-512)/4096.f;
+        quad.sprite_pos  = vec2(512*TileSet::keyTileToIndex(hero.keys[i]), 4096-1024)/4096.f;
         quad.sprite_size = vec2(512, 512)/4096.f;
         hud_keys_quad_batch.instances.push_back(quad);
     }
@@ -380,6 +380,12 @@ void Dungeon::reshape(ivec2 new_viewport_size) {
     const float lifebar_1_w = .004f;
     const float lifebar_w = hero.life_max * lifebar_1_w;
     const float lifebar_h = .14f;
+
+
+    hud_life_quad_batch.instances[1].sprite_pos  = vec2(3072,4096-512)/4096.f;
+    hud_life_quad_batch.instances[0].sprite_pos  = vec2(3072,4096-1024)/4096.f;
+    hud_life_quad_batch.instances[1].sprite_size = vec2(512, 512)/4096.f;
+    hud_life_quad_batch.instances[0].sprite_size = vec2(512, 512)/4096.f;
 
     // Too lazy to refactor these two
     hud_life_quad_batch.instances[0].modelmatrix
