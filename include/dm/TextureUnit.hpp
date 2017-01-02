@@ -8,6 +8,7 @@ enum class TextureUnit {
     WELCOME_SCREEN,
     WORLD_MAP,
     BLACK_FADER,
+    DOOR,
     TRANS_ATLAS,
     GRASS_GROUND,
     GRASS_WALL,

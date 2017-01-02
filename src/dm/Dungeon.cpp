@@ -288,6 +288,7 @@ GLuint Dungeon::tex_cave_wall     (0);
 GLuint Dungeon::tex_mansion_ground(0);
 GLuint Dungeon::tex_mansion_wall  (0);
 GLuint Dungeon::tex_trans_atlas   (0);
+GLuint Dungeon::tex_door          (0);
 
 void Dungeon::setupGL() {
     hope(tex_grass_ground   = GLTexture_fromFile("res/tex_sol_prairie.jpg"));
@@ -298,6 +299,7 @@ void Dungeon::setupGL() {
     hope(tex_mansion_ground = GLTexture_fromFile("res/tex_sol_manoir.jpg"));
     hope(tex_mansion_wall   = GLTexture_fromFile("res/tex_mur_manoir.jpg"));
     hope(tex_trans_atlas    = GLTexture_fromFile("res/trans.png"));
+    hope(tex_door           = GLTexture_fromFile("res/door.jpg"));
 
     GLTexture_bindToUnit(tex_grass_ground  , TextureUnit::GRASS_GROUND);
     GLTexture_bindToUnit(tex_grass_wall    , TextureUnit::GRASS_WALL);
@@ -307,6 +309,7 @@ void Dungeon::setupGL() {
     GLTexture_bindToUnit(tex_mansion_ground, TextureUnit::MANSION_GROUND);
     GLTexture_bindToUnit(tex_mansion_wall  , TextureUnit::MANSION_WALL);
     GLTexture_bindToUnit(tex_trans_atlas   , TextureUnit::TRANS_ATLAS);
+    GLTexture_bindToUnit(tex_door          , TextureUnit::DOOR);
 }
 void Dungeon::cleanupGL() {
     glDeleteTextures(1, &tex_grass_ground  );
@@ -317,6 +320,7 @@ void Dungeon::cleanupGL() {
     glDeleteTextures(1, &tex_mansion_ground);
     glDeleteTextures(1, &tex_mansion_wall  );
     glDeleteTextures(1, &tex_trans_atlas   );
+    glDeleteTextures(1, &tex_door          );
 }
 
 Dungeon:: Dungeon(ivec2 viewport_size) 
@@ -382,10 +386,10 @@ void Dungeon::reshape(ivec2 new_viewport_size) {
     const float lifebar_h = .14f;
 
 
-    hud_life_quad_batch.instances[1].sprite_pos  = vec2(3072,4096-512)/4096.f;
-    hud_life_quad_batch.instances[0].sprite_pos  = vec2(3072,4096-1024)/4096.f;
-    hud_life_quad_batch.instances[1].sprite_size = vec2(512, 512)/4096.f;
-    hud_life_quad_batch.instances[0].sprite_size = vec2(512, 512)/4096.f;
+   hud_life_quad_batch.instances[1].sprite_pos  = vec2(4096-512,4096-512)/4096.f;
+   hud_life_quad_batch.instances[0].sprite_pos  = vec2(4096-512,4096-1024)/4096.f;
+   hud_life_quad_batch.instances[0].sprite_size = vec2(512, 512)/4096.f;
+   hud_life_quad_batch.instances[1].sprite_size = vec2(512, 512)/4096.f;
 
     // Too lazy to refactor these two
     hud_life_quad_batch.instances[0].modelmatrix
@@ -501,7 +505,12 @@ void Dungeon::fillFloorDataFromTileSet() {
                              * rotate(float(quad_angle_y)-float(M_PI)/2.f, vec3(0,1,0)) \
                              * translate(mat4(), vec3(0,0,-.5f)); \
             quad.sprite_size = vec2(.999,.999); \
+            if(tile == Tile::EXIT) { \
+                quad.sprite_pos  = vec2(4096-1024,4096-512)/4096.f; \
+                quad.sprite_size = vec2(512,512)/4096.f; \
+            } \
             (qbatch).instances.push_back(quad); \
+            quad.sprite_size = vec2(0,0); \
             quad.sprite_size = vec2(1,1); \
         }
 #define ADD_CAGE_QUAD(qbatch, quad_angle_y) { \
@@ -652,7 +661,7 @@ void Dungeon::prepare(size_t i, size_t p_floor_index) {
         should_render_ceiling = (i==4);
         break;
     }
-    doors_quad_batch.texture_unit = TextureUnit::WORLD_MAP;
+    doors_quad_batch.texture_unit = TextureUnit::DOOR;
     trans_quad_batch.texture_unit = TextureUnit::TRANS_ATLAS;
 
     mat4 rx = rotate(float(M_PI)/2.f, vec3(1,0,0));

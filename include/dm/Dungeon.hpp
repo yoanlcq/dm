@@ -248,6 +248,7 @@ private:
     static GLuint tex_mansion_ground;
     static GLuint tex_mansion_wall  ;
     static GLuint tex_trans_atlas   ;
+    static GLuint tex_door          ;
     void fillFloorDataFromTileSet();
     void sortTransQuadsAndObjects();
 };
