@@ -215,6 +215,8 @@ Attack::Attack()
       post_speed(1/.6f)
     {}
 
+Fighter::Fighter() : damage_multiplier(1) {}
+
 
 size_t Dungeon::refcount(0);
 GLuint Dungeon::tex_grass_ground  (0);
@@ -369,7 +371,9 @@ void Dungeon::fillFloorDataFromTileSet() {
             quad.modelmatrix = translate(mat4(), vec3(x,0,y)) \
                              * rotate(float(quad_angle_y)-float(M_PI)/2.f, vec3(0,1,0)) \
                              * translate(mat4(), vec3(0,0,-.5f)); \
+            quad.sprite_size = vec2(.999,.999); \
             (qbatch).instances.push_back(quad); \
+            quad.sprite_size = vec2(1,1); \
         }
 #define ADD_CAGE_QUAD(qbatch, quad_angle_y) { \
             (cages.end()-1)->quad_indices.push_back((qbatch).instances.size()); \
@@ -417,6 +421,8 @@ void Dungeon::fillFloorDataFromTileSet() {
             ADD_TRANS_QUAD(enemies);
             (enemies.end()-1)->speed = 1;
             (enemies.end()-1)->feel_radius = 8;
+            (enemies.end()-1)->life_max = 20;
+            (enemies.end()-1)->life = (enemies.end()-1)->life_max;
         } else if(TileSet::isTileFriend(tile)) {
             ADD_TRANS_QUAD(friends);
         } else if(TileSet::isTileKey(tile)) {
@@ -509,7 +515,9 @@ void Dungeon::prepare(size_t i) {
     hero.speed = 3.2f;
     hero.angular_speed = 2.4f;
     hero.life_max = 100;
-    hero.life = hero.life_max/3.f;
+    hero.life = hero.life_max;
+    hero.attack.launch_speed = 1/.1f;
+    hero.attack.post_speed = 1/.5f;
     hero.keys.clear();
     
     fillFloorDataFromTileSet();
@@ -747,7 +755,7 @@ GameplayType Dungeon::nextFrame(const Input &input, uint32_t fps) {
                 trans_quad_batch.updateInstancesVBO();
                 enemy.attack.launch_progress = 0;
                 if(enemy.attack.check_hit(enemy.getTilePos(), enemy.angle_y, hero.getTilePos(), tiles)) {
-                    hero.life -= enemy.attack.damage;
+                    hero.life -= enemy.attack.damage*enemy.damage_multiplier;
                     if(hero.life <= 0)
                         return GameplayType::WORLD_MAP;
                     cout << "Ouch!" << endl;
@@ -814,6 +822,42 @@ GameplayType Dungeon::nextFrame(const Input &input, uint32_t fps) {
                 dialogue.lines[0] = "Nope! You need a key.";
                 dialogue.updateQuadBatch();
             }
+
+        } else { // Not a cage
+            if(!hero.attack.launch_progress && !hero.attack.post_progress) {
+                hero.attack.launch_progress = 0.0001f/float(fps); // Just to start it.
+                cout << "Hero: Attempting attack..." << endl;
+            }
+        }
+    }
+
+    if(hero.attack.launch_progress) {
+        hero.attack.launch_progress += hero.attack.launch_speed/float(fps);
+        if(hero.attack.launch_progress >= 1) {
+            hero.attack.launch_progress = 0;
+            hero.attack.post_progress = 0.0001f/float(fps);
+            for(Enemy &enemy : enemies) {
+                bool would_hit = hero.attack.check_hit(hero.getTilePos(), hero.angle_y, enemy.getTilePos(), tiles);
+                if(would_hit) {
+                    cout << "Gotcha!" << endl;
+                    enemy.life -= hero.attack.damage*hero.damage_multiplier;
+                    if(enemy.life <= 0) {
+                        ivec2 epos = enemy.getTilePos();
+                        tiles.setTileAt(epos.x, epos.y, Tile::GROUND);
+                        enemy.position = vec3(-1000, -1000, -1000);
+                        sortTransQuadsAndObjects();
+                        trans_quad_batch.updateInstancesVBO();
+                    }
+                }
+            }
+        }
+    }
+
+    if(hero.attack.post_progress) {
+        hero.attack.post_progress += hero.attack.post_speed/float(fps);
+        if(hero.attack.post_progress >= 1) {
+            hero.attack.post_progress = 0;
+            cout << "Hero: Attack completed." << endl;
         }
     }
 
@@ -864,8 +908,16 @@ GameplayType Dungeon::nextFrame(const Input &input, uint32_t fps) {
             std::sort(hero.keys.begin(), hero.keys.end());
             reshape(hud_view.viewport_size);
             tiles.setTileAt(x2, y2, Tile::GROUND);
+            tiles.swapTilesAt(x1, y1, x2, y2);
+        } else if(tile == Tile::EXIT) {
+            if(cages.size()) {
+                dialogue.lines[0] = "You need to open every cage";
+                dialogue.lines[1] = "before moving on.";
+                dialogue.updateQuadBatch();
+            } else {
+                return GameplayType::WORLD_MAP;
+            }
         }
-        tiles.swapTilesAt(x1, y1, x2, y2);
     }
 
     if(hero.position.progress >= 1) {

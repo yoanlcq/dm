@@ -128,6 +128,8 @@ struct Attack {
 struct Fighter : public Character {
     float damage_multiplier;
     Attack attack;
+
+    Fighter();
 };
 
 
