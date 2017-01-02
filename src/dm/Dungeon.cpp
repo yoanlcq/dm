@@ -743,7 +743,7 @@ void Dungeon::prepare(size_t i, size_t p_floor_index) {
 
 
     dialogue.lines.clear();
-    dialogue.lines.push_back("Z,Q,S,D to move.");
+    dialogue.lines.push_back("Z,Q,S,D: move - A,E: turn.");
     dialogue.lines.push_back("[Space] to interact/attack.");
     dialogue.line_height = .064f;
     dialogue.rgba = vec4(1,1,1,1);
