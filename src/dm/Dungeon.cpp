@@ -989,6 +989,10 @@ GameplayType Dungeon::nextFrame(const Input &input, uint32_t fps) {
                 if(i != j)
                     taken.push_back(e.getNextTilePos());
             }
+            for(size_t j=0 ; j<keys.size() ; ++j) {
+                const Key &key = keys[j];
+                taken.push_back(key.getTilePos());
+            }
             vec2 axis = enemy.decideMoveTowards(hero, tiles, taken);
             enemy.position.next = enemy.position.prev + vec3(axis.x,0,axis.y);
         }
