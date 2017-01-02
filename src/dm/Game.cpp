@@ -20,6 +20,17 @@ EnsureGLContext::EnsureGLContext(Game *g) {
         return;
     }
 
+
+        
+    int flags=MIX_INIT_OGG|MIX_INIT_MP3;
+    int initted=Mix_Init(flags);
+    if((initted&flags) != flags) {
+        cerr << "Mix_Init: Failed to init required OGG and MP3 support!" << endl;
+        cerr << "Mix_Init: " << Mix_GetError() << endl;
+        return;
+    }
+
+
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 
@@ -132,6 +143,9 @@ Game::Game(glm::ivec2 window_size)
 }
 
 Game::~Game() {
+    // From the docs
+    while(Mix_Init(0))
+        Mix_Quit();
     IMG_Quit();
     SDL_GL_DeleteContext(gl_context);
     SDL_DestroyWindow(window);

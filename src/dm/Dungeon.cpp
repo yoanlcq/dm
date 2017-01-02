@@ -506,8 +506,8 @@ void Dungeon::fillFloorDataFromTileSet() {
                              * translate(mat4(), vec3(0,0,-.5f)); \
             quad.sprite_size = vec2(.999,.999); \
             if(tile == Tile::EXIT) { \
-                quad.sprite_pos  = vec2(4096-1024,4096-512)/4096.f; \
-                quad.sprite_size = vec2(512,512)/4096.f; \
+                quad.sprite_pos  = vec2(4096-1024+10,4096-512)/4096.f; \
+                quad.sprite_size = vec2(512-10,512)/4096.f; \
             } \
             (qbatch).instances.push_back(quad); \
             quad.sprite_size = vec2(0,0); \
@@ -743,8 +743,8 @@ void Dungeon::prepare(size_t i, size_t p_floor_index) {
 
 
     dialogue.lines.clear();
-    dialogue.lines.push_back("Heya!");
-    dialogue.lines.push_back("How's it going?");
+    dialogue.lines.push_back("Z,Q,S,D to move.");
+    dialogue.lines.push_back("[Space] to interact/attack.");
     dialogue.line_height = .064f;
     dialogue.rgba = vec4(1,1,1,1);
     dialogue_box_quad_batch.instances.resize(1);
@@ -1102,9 +1102,11 @@ GameplayType Dungeon::nextFrame(const Input &input, uint32_t fps) {
                 reshape(hud_view.viewport_size);
                 tiles.setTileAt(x2, y2, Tile::GROUND);
                 dialogue.lines[0] = "Yay! Well done!";
+                dialogue.lines[1] = "";
                 dialogue.updateQuadBatch();
             } else {
                 dialogue.lines[0] = "Nope! You need a key.";
+                dialogue.lines[1] = "";
                 dialogue.updateQuadBatch();
             }
 
@@ -1118,7 +1120,8 @@ GameplayType Dungeon::nextFrame(const Input &input, uint32_t fps) {
 
             door->opening_angle.next = (doorquarter==heroquarter ? M_PI/2 : -M_PI/2);
             tiles.setTileAt(x2, y2, Tile::GROUND);
-            dialogue.lines[0] = "Opened door!";
+            dialogue.lines[0] = "Opened door.";
+            dialogue.lines[1] = "Wonder what's behind...";
             dialogue.updateQuadBatch();
 
         } else { // Neither cage nor door
