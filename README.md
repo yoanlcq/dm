@@ -1,6 +1,6 @@
-## Dungeon Master
+## Dungeon Master -- PLEASE READ FIRST
 
-Controls : Z,Q,S,D (AZERTY Keyboard) to move, SPACE to interact/attack.  
+Controls : Z,Q,S,D (AZERTY Keyboard) to move, A/E to turn around, SPACE to interact/attack.  
 Pick up keys, open the matching cages, then find the exit to the next floor.  
 Beware of the enemies on the way!  
 
