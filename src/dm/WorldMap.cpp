@@ -32,11 +32,11 @@ static const float hero_ratio(hero_sz.x/hero_sz.y);
 
 // These coords were taken with a window size of (800, 600).
 static const vec3 NODE_POS[WorldMap::NODE_COUNT] = {
-    vec3(-1.015f, -0.254f, 0),
-    vec3(-0.545f, -0.254f, 0),
-    vec3(-0.045f, -0.254f, 0),
-    vec3( 0.505f, -0.254f, 0),
-    vec3( 1.115f, -0.254f, 0)
+    vec3(-1.020f, -0.254f, 0),
+    vec3(-0.550f, -0.254f, 0),
+    vec3(-0.050f, -0.254f, 0),
+    vec3( 0.500f, -0.254f, 0),
+    vec3( 1.110f, -0.254f, 0)
 };
 
 static vec3 getNodePos(WorldMap *wm, size_t i) {

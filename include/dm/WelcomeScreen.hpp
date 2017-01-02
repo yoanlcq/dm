@@ -10,6 +10,8 @@ struct WelcomeScreen {
     static GLuint    tex;
     GLQuadBatch      quad_batch;
     bool             is_in_transition;
+    GLText           press_space_txt;
+    GLText           credits_txt;
 
      WelcomeScreen(glm::ivec2 viewport_size);
     ~WelcomeScreen();

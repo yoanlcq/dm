@@ -78,6 +78,8 @@ struct TileObject {
     void face(const TileObject &other);
     glm::mat4 getModelMatrix() const;
     glm::ivec2 decideMoveTowards(const TileObject &target, const TileSet &tiles, const std::vector<glm::ivec2> &taken) const;
+    glm::ivec2 getTilePos() const;
+    glm::ivec2 getNextTilePos() const;
 };
 
 struct QuadEntity {
@@ -102,12 +104,19 @@ struct Friend : public Character, public QuadEntity, public TileObject {
 };
 
 struct Attack {
-    typedef bool (*HitChecker)(glm::ivec2 target_pos);
-    // 'target_pos' must be relative to the attack's user.
+    typedef bool (*HitChecker)(glm::ivec2 origin, float origin_angle_y, glm::ivec2 target, TileSet &tiles);
 
+    HitChecker check_hit;
     LifeValue  damage;
-    Lerp<bool> started, completed;
-    float      start_speed, after_speed;
+    float      launch_progress, post_progress;
+    float      launch_speed, post_speed;
+    // An attack is viewed as happening in two steps : "launch" and "post"
+    // (as in "post-attack").
+    // When starting the attack, we are in the "launch" step. When this
+    // step completes, the attack hits, then we go to the "post" step.
+
+
+    Attack();
 
     // void use();
     // static const Attack SIMPLE;
@@ -118,7 +127,7 @@ struct Attack {
 
 struct Fighter : public Character {
     float damage_multiplier;
-    Attack basic_attack;
+    Attack attack;
 };
 
 

@@ -6,6 +6,11 @@ using namespace glm;
 namespace dm {
 
 
+static float angleClosestQuarter(float angle) {
+    return 2.f*M_PI*roundf(angle/(M_PI/2.f))/4.f;
+}
+
+
 Tile TileSet::rgb24ToTile(rgb24 col) {
     uint32_t tile = (col.r<<16) | (col.g<<8) | col.b;
     return (Tile)tile;
@@ -178,6 +183,39 @@ Tile TileSet::cageToKey(Tile tile) {
 TileObject::TileObject() 
     : position(vec3(0,0,0)), angle_y(float(M_PI)/2), was_tile_swapped(false) {}
 
+
+ivec2 TileObject::getNextTilePos() const {
+    return ivec2(
+        roundf(position.next.x), 
+        roundf(position.next.z)
+    );
+}
+ivec2 TileObject::getTilePos() const {
+    return ivec2(
+        roundf(position.getCurrent().x), 
+        roundf(position.getCurrent().z)
+    );
+}
+
+
+static bool forwardHitChecker(ivec2 org, float org_angle_y, ivec2 target, TileSet &tiles) {
+    org_angle_y = angleClosestQuarter(org_angle_y);
+    vec3 dir = rotate(mat3(), org_angle_y) * vec3(1, 0, 0);
+    dir.y = -dir.y;
+    ivec2 hit_pos(org.x+roundf(dir.x), org.y+roundf(dir.y));
+    return hit_pos == target;
+}
+
+Attack::Attack() 
+    : check_hit(forwardHitChecker),
+      damage(5), 
+      launch_progress(0), 
+      post_progress(0),
+      launch_speed(1/.5f),
+      post_speed(1/.6f)
+    {}
+
+
 size_t Dungeon::refcount(0);
 GLuint Dungeon::tex_grass_ground  (0);
 GLuint Dungeon::tex_grass_wall    (0);
@@ -286,7 +324,7 @@ void TileObject::face(const TileObject &other) {
     // Kinda hard to choose betwwen the two.
 #if 1 
     vec3 facing_vec = position.getCurrent() - other.position.getCurrent();
-    angle_y = atan2f(-facing_vec.z, facing_vec.x);
+    angle_y = atan2f(-facing_vec.z, facing_vec.x)+M_PI;
 #else
     angle_y = other.angle_y + M_PI;
 #endif
@@ -294,7 +332,7 @@ void TileObject::face(const TileObject &other) {
 
 mat4 TileObject::getModelMatrix() const {
     return translate(mat4(), position.getCurrent())
-         * rotate(angle_y-float(M_PI)/2.f, vec3(0,1,0));
+         * rotate(angle_y+float(M_PI)/2.f, vec3(0,1,0));
 }
 
 
@@ -501,6 +539,7 @@ void Dungeon::prepare(size_t i) {
     trans_quad_batch.updateInstancesVBO();
 
 
+    dialogue.lines.clear();
     dialogue.lines.push_back("Heya!");
     dialogue.lines.push_back("How's it going?");
     dialogue.line_height = .064f;
@@ -542,10 +581,6 @@ void Dungeon::sortTransQuadsAndObjects() {
     }
 }
 
-
-static float angleClosestQuarter(float angle) {
-    return 2.f*M_PI*roundf(angle/(M_PI/2.f))/4.f;
-}
 
 
 // 'taken' receives the planned positions of other AIs and the player, so we know we can't move
@@ -655,11 +690,11 @@ GameplayType Dungeon::nextFrame(const Input &input, uint32_t fps) {
 
         if(!enemy.position.progress) {
             vector<ivec2> taken;
-            taken.push_back(ivec2(roundf(hero.position.next.x), roundf(hero.position.next.z)));
+            taken.push_back(hero.getNextTilePos());
             for(size_t j=0 ; j<enemies.size() ; ++j) {
                 const Enemy &e = enemies[j];
                 if(i != j)
-                    taken.push_back(ivec2(roundf(e.position.next.x), roundf(e.position.next.z)));
+                    taken.push_back(e.getNextTilePos());
             }
             vec2 axis = enemy.decideMoveTowards(hero, tiles, taken);
             enemy.position.next = enemy.position.prev + vec3(axis.x,0,axis.y);
@@ -686,11 +721,51 @@ GameplayType Dungeon::nextFrame(const Input &input, uint32_t fps) {
             enemy.position.prev.z = roundf(enemy.position.prev.z);
         }
 
+
+        if(!enemy.attack.launch_progress && !enemy.attack.post_progress) {
+            // Attempt an attack only if the hero is within range, and we're
+            // not already attacking.
+            bool would_hit = enemy.attack.check_hit(enemy.getTilePos(), enemy.angle_y, hero.getTilePos(), tiles);
+            /*
+            cout << enemy.getTilePos() << " by " 
+                << degrees(enemy.angle_y.getCurrent()) << "° "
+                << (does_hit ? "Does hit" : "Doesn't hit")
+                << " " << hero.getTilePos() << endl;
+                */
+            if(would_hit) {
+                enemy.attack.launch_progress = 0.0001f/float(fps); // Just to start it.
+                cout << "Attempting attack..." << endl;
+                trans_quad_batch.instances[enemy.quad_index].sprite_pos = vec2(.5,.5);
+                trans_quad_batch.updateInstancesVBO();
+            }
+        }
+
+        if(enemy.attack.launch_progress) {
+            enemy.attack.launch_progress += enemy.attack.launch_speed/float(fps);
+            if(enemy.attack.launch_progress >= 1) {
+                trans_quad_batch.instances[enemy.quad_index].sprite_pos = vec2(1,1);
+                trans_quad_batch.updateInstancesVBO();
+                enemy.attack.launch_progress = 0;
+                if(enemy.attack.check_hit(enemy.getTilePos(), enemy.angle_y, hero.getTilePos(), tiles)) {
+                    hero.life -= enemy.attack.damage;
+                    if(hero.life <= 0)
+                        return GameplayType::WORLD_MAP;
+                    cout << "Ouch!" << endl;
+                    reshape(view.viewport_size);
+                }
+                enemy.attack.post_progress = 0.0001f/float(fps);
+            }
+        }
+
+        if(enemy.attack.post_progress) {
+            enemy.attack.post_progress += enemy.attack.post_speed/float(fps);
+            if(enemy.attack.post_progress >= 1) {
+                enemy.attack.post_progress = 0;
+                cout << "Attack completed." << endl;
+            }
+        }
+
         one_enemy_has_moved = true;
-    }
-    if(one_enemy_has_moved) {
-        sortTransQuadsAndObjects();
-        trans_quad_batch.updateInstancesVBO();
     }
 
 
@@ -803,7 +878,7 @@ GameplayType Dungeon::nextFrame(const Input &input, uint32_t fps) {
     }
 
 
-    if(hero.position.progress || hero.angle_y.progress) {
+    if(hero.position.progress || hero.angle_y.progress || one_enemy_has_moved) {
         sortTransQuadsAndObjects();
         trans_quad_batch.updateInstancesVBO();
     }

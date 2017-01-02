@@ -83,7 +83,7 @@ void GLText::updateQuadBatch() {
             quad.modelmatrix  = translate(quad.modelmatrix, vec3(1, 0, 0));
         }
         ++lineno;
-        nposition.y -= lineno*line_height;
+        nposition.y -= line_height;
         quad.modelmatrix =
               translate(mat4(), nposition) 
             * scale(vec3(CHAR_RATIO*line_height,line_height,1));
