@@ -922,6 +922,7 @@ static const float FADER_POST_SPEED = 1/2.f;
 
 GameplayType Dungeon::nextFrame(const Input &input, uint32_t fps) {
 
+
     if(input.escape)
         return GameplayType::WORLD_MAP;
 
